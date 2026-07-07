@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Content Enricher — augment an order | EIP Hands-On</title>
+  <meta name="description" content="Learn the Content Enricher pattern in Apache Camel: use enrich() and an AggregationStrategy to augment an order with customer data, then assert it in a test.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/16-content-enricher.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Content Enricher — augment an order with data">
+  <meta property="og:description" content="Augment an order with customer data using enrich() and an AggregationStrategy, with a runnable Camel route and test.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/16-content-enricher.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Content Enricher — augment an order with data">
+  <meta name="twitter:description" content="Augment an order with data using enrich() and an AggregationStrategy.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Content Enricher", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/16-content-enricher.html" } ] },
+      { "@type": "LearningResource", "name": "Content Enricher",
+        "description": "Augment an order with the data it lacks by fetching a full customer record with Apache Camel's enrich() and merging it in with an AggregationStrategy.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Content Enricher (Enterprise Integration Pattern)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/16-content-enricher">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Transformation &amp; messaging › <span>16 · Content Enricher</span></p>
+    <h1>Content Enricher: Augment an Order with Data</h1>
+    <p class="objective"><b>Add data a message is missing by fetching it from another source and merging it in.</b> Reach for it whenever a message carries a reference — an id, a code — but the next step needs the full record behind it.</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>A boarding pass shows a seat number, but the gate agent needs your whole reservation. A Content Enricher fills that gap: it takes a message holding only a <em>reference</em> and looks up the full record to attach. In Camel the verb is <span class="ep">enrich()</span> — it drives a resource route on demand (request/reply) and hands the reply to an <span class="ep">AggregationStrategy</span> that merges it onto the original body. Its sibling <span class="ep">pollEnrich()</span> instead <em>consumes</em> from a resource (read a file, poll a queue) — same merge idea, different trigger.</p>
+
+      <h2>The scenario</h2>
+      <p>ShopFlow orders arrive knowing only <b>which</b> customer placed them (<span class="ep">customerId</span>) — not <b>who</b> they are. Before an order moves downstream we enrich it with the customer's name, email and loyalty tier, looked up from an in-memory directory (a stand-in for a DB or REST service — <b>no real HTTP</b>). Order <span class="ep">C-1</span> gains Alice Kumar / GOLD, <span class="ep">C-2</span> gains Bruno Lang / SILVER, and an unknown <span class="ep">C-9</span> flows on unchanged — the order is never dropped.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="direct:orders enters the enricher, which calls direct:customer-lookup to fetch a Customer, merges it, and forwards the enriched order to ep.out.">
+          <div class="step"><span class="lbl">direct:orders</span><span class="sub">order, customerId only</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">enrich()</span><span class="sub">+ MergeStrategy</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">direct:customer-lookup</span><span class="sub">findById</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">Customer directory</span><span class="sub">returns Customer</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">{{ep.out}}</span><span class="sub">order + customer fields</span></div>
+        </div>
+        <figcaption>direct:orders → enrich(direct:customer-lookup) → MergeStrategy merges the Customer → {{ep.out}}</figcaption>
+      </figure>
+
+      <h2>The route</h2>
+      <div class="code"><div class="code-head"><span>ContentEnricherRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:orders")                                          // (1) orders arrive knowing only customerId
+    .routeId("enricher")
+    .log("Enriching order ${body.orderId} for customer ${body.customerId}")
+    .enrich("direct:customer-lookup", new MergeStrategy())     // (2) fetch + merge customer data
+    .log("Enriched order: ${body}")
+    .to("{{ep.out}}");                                         // (3) enriched order continues downstream
+
+from("direct:customer-lookup")                                 // (4) the enrich resource route
+    .routeId("customer-lookup")
+    .log("Looking up customer ${body.customerId}")
+    .bean(CustomerRepository.class, "findById(${body.customerId})"); // (5) bean returns a Customer by id</code></pre></div>
+      <ol>
+        <li><b>(1)</b> the main route consumes orders from an in-memory <span class="ep">direct:</span> channel; each order carries a <span class="ep">customerId</span> and little else.</li>
+        <li><b>(2)</b> <span class="ep">enrich()</span> is the Content Enricher: it sends the order to the resource route, waits for the reply, and passes both to <span class="ep">MergeStrategy</span> — the <span class="ep">AggregationStrategy</span> that copies the customer's fields onto the order and returns the <em>order</em>, so the enriched message keeps flowing.</li>
+        <li><b>(3)</b> the output is a <span class="ep">{{ep.out}}</span> placeholder — production points it at a real endpoint while tests point it at <span class="ep">mock:out</span>.</li>
+        <li><b>(4)(5)</b> the resource route looks up the record: a plain <span class="ep">bean</span> calls <span class="ep">CustomerRepository.findById</span> with the order's id and returns a <span class="ep">Customer</span> (or <span class="ep">null</span> for an unknown id, which the merge leaves untouched).</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/16-content-enricher spring-boot:run</code></pre></div>
+      <p>A demo feeder injects a rotating sample order every 3s — watch each land on the log carrying <span class="ep">customerName</span> and <span class="ep">customerTier</span>, and watch <span class="ep">C-9</span> flow through with empty customer fields (a lookup miss that isn't dropped). Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>ContentEnricherTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void orderIsEnrichedWithCustomerData() throws Exception {
+    out.expectedMessageCount(1);
+
+    template.sendBody("direct:orders", new Order("A-1001", "C-1"));
+
+    out.assertIsSatisfied();
+
+    Order enriched = out.getExchanges().get(0).getIn().getBody(Order.class);
+    assertEquals("A-1001", enriched.getOrderId());
+    assertEquals("C-1", enriched.getCustomerId());
+    // These three fields were empty on the way in and filled by the Content Enricher:
+    assertEquals("Alice Kumar", enriched.getCustomerName());
+    assertEquals("alice@example.com", enriched.getCustomerEmail());
+    assertEquals("GOLD", enriched.getCustomerTier());
+}</code></pre></div>
+      <p>The order goes in carrying only an id; it comes out of <span class="ep">mock:out</span> carrying the customer's name, email and tier — proof the message was augmented from a second source with no broker and no HTTP. Sibling tests feed a <em>different</em> id (<span class="ep">C-2</span>) to show the lookup really keys off <span class="ep">customerId</span>, and an <em>unknown</em> id (<span class="ep">C-9</span>) that still reaches <span class="ep">mock:out</span> with its customer fields null. Run just the tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/16-content-enricher test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Add a customer <span class="ep">C-3</span> with tier <span class="ep">PLATINUM</span> to the directory, feed an order for it, and write the assertion that proves the enricher fills in the new tier on <span class="ep">mock:out</span>.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>A Content Enricher augments a message with data it lacks, fetched from a separate resource keyed off a reference the message already carries.</li>
+        <li><span class="ep">enrich()</span> drives a resource route on demand and an <span class="ep">AggregationStrategy</span> merges the reply back onto the original body — <span class="ep">pollEnrich()</span> is the consume-flavoured sibling.</li>
+        <li>A lookup miss doesn't drop the message: the order flows on with empty fields, so enrichment is additive, not a gate.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="15-message-translator.html"><div class="dir">← Previous</div>15 · Message Translator</a>
+      <a class="next" href="18-point-to-point-and-pub-sub.html"><div class="dir">Next →</div>18 · Point-to-Point &amp; Pub-Sub</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

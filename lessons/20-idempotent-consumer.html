@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Idempotent Consumer — process once | EIP Hands-On</title>
+  <meta name="description" content="Learn the Idempotent Consumer pattern in Apache Camel: use idempotentConsumer() keyed on orderId to drop duplicate deliveries so each order runs exactly once.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/20-idempotent-consumer.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Idempotent Consumer — process each order once">
+  <meta property="og:description" content="Drop duplicate deliveries so each order is processed exactly once, with a runnable Camel route and test.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/20-idempotent-consumer.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Idempotent Consumer — process each order once">
+  <meta name="twitter:description" content="Process each message exactly once by dropping duplicates with idempotentConsumer().">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Idempotent Consumer", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/20-idempotent-consumer.html" } ] },
+      { "@type": "LearningResource", "name": "Idempotent Consumer",
+        "description": "Process each message exactly once by remembering an idempotency key and dropping duplicate deliveries using Apache Camel's idempotentConsumer() DSL.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Idempotent Consumer (Enterprise Integration Pattern)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/20-idempotent-consumer">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Reliability › <span>20 · Idempotent Consumer</span></p>
+    <h1>Idempotent Consumer: Process Each Order Once</h1>
+    <p class="objective"><b>Process each message exactly once by dropping duplicates.</b> Reach for it whenever the same logical message can arrive twice — a broker redelivery, a replayed batch, a double-tapped "Pay" — and repeating the work would be harmful.</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>Picture a bouncer with a guest list, ticking off each name as it arrives. Show up a second time and you're turned away — you're already on the list. An Idempotent Consumer does the same for messages: it derives a stable <b>idempotency key</b> from each one and remembers the keys it has already seen. In Camel that's the <span class="ep">idempotentConsumer(key, repository)</span> block — the first message carrying a key runs the guarded steps; every later copy of that key is silently dropped. The <span class="ep">repository</span> is the guest list; the key must be identical across every copy of the same logical message.</p>
+
+      <h2>The scenario</h2>
+      <p>ShopFlow receives orders on <span class="ep">direct:orders</span>. Every order carries a stable idempotency key in its <span class="ep">orderId</span> header. The first <b>A-1001</b> is new, so it is processed and reaches <span class="ep">ep.out</span>. When the broker redelivers the <em>same</em> <b>A-1001</b>, its key is already seen, so it is dropped. A distinct order <b>A-1002</b> is a genuinely new key and passes through.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="direct:orders enters an idempotentConsumer keyed on orderId; a first-seen key goes to ep.out, an already-seen key is dropped.">
+          <div class="step"><span class="lbl">direct:orders</span><span class="sub">incoming order</span></div>
+          <div class="arrow">→</div>
+          <div class="step decision"><span class="lbl">idempotentConsumer()</span><span class="sub">key = orderId</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">→ ep.out</span><span class="sub">first time seen</span></div>
+          <div class="step"><span class="lbl">→ dropped</span><span class="sub">key already seen</span></div>
+        </div>
+        <figcaption>direct:orders → idempotentConsumer(orderId) → ep.out (new key) | dropped (seen key); an in-memory repository remembers the keys.</figcaption>
+      </figure>
+
+      <h2>The route</h2>
+      <div class="code"><div class="code-head"><span>IdempotentConsumerRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:orders")                                            // (1) the channel orders arrive on
+    .routeId("idempotent")                                       //     always name a route (tracing, metrics, tests)
+    .idempotentConsumer(                                          // (2) the Idempotent Consumer itself
+            header("orderId"),                                    // (3) the idempotency key
+            MemoryIdempotentRepository.memoryIdempotentRepository()) // (4) in-memory seen-keys store (swap for JDBC in prod)
+        .log("Processing order ${header.orderId} (amount=${body.amount})") // only first-seen keys reach here
+        .to("{{ep.out}}")                                        // (5) the exactly-once destination
+    .end();                                                      //     close the idempotent block</code></pre></div>
+      <ol>
+        <li><b>(1)</b> the route consumes orders from an in-memory <span class="ep">direct:</span> channel.</li>
+        <li><b>(2)</b> <span class="ep">idempotentConsumer(...)</span> opens the guarded block; only the first message for a given key runs the steps inside it.</li>
+        <li><b>(3)</b> the key is <span class="ep">header("orderId")</span> — a stable, business-meaningful value that is identical across every duplicate delivery of the same order.</li>
+        <li><b>(4)</b> <span class="ep">MemoryIdempotentRepository</span> is the seen-keys store: fine for one JVM and for tests, but it forgets on restart. Swap in a JDBC / Redis / Infinispan repository for restart-safe, cluster-wide dedup — the DSL is unchanged.</li>
+        <li><b>(5)</b> <span class="ep">.to("{{ep.out}}")</span> is the exactly-once destination. The <span class="ep">{{ep.out}}</span> placeholder points at a real channel in production and at a mock in tests.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/20-idempotent-consumer spring-boot:run</code></pre></div>
+      <p>A demo feeder emits each order <b>twice</b> every few seconds — watch the first copy log as <span class="ep">Processing order A-1000 …</span> and its immediate duplicate get silently dropped. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>IdempotentConsumerTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void duplicatesAreDroppedButDistinctIdsPassThrough() throws Exception {
+    // Same orderId sent twice — the second is a duplicate and must be silently dropped.
+    out.expectedMessageCount(1);
+
+    template.sendBodyAndHeader("direct:orders", new Order("A-1001", 999), "orderId", "A-1001");
+    template.sendBodyAndHeader("direct:orders", new Order("A-1001", 999), "orderId", "A-1001"); // duplicate
+
+    out.assertIsSatisfied();   // fired EXACTLY once
+
+    // A second, DISTINCT orderId is a genuinely new order — it passes, bringing the total to 2.
+    out.expectedMessageCount(2);
+
+    template.sendBodyAndHeader("direct:orders", new Order("A-1002", 500), "orderId", "A-1002");
+
+    out.assertIsSatisfied();   // now 2 total
+}</code></pre></div>
+      <p>In the test profile <span class="ep">{{ep.out}}</span> resolves to <span class="ep">mock:out</span>, so the test asserts exactly how many messages survive deduplication: the twice-sent <span class="ep">A-1001</span> fires once, and the distinct <span class="ep">A-1002</span> brings the total to two. Run just the tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/20-idempotent-consumer test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Send a third delivery of <span class="ep">A-1001</span> after <span class="ep">A-1002</span> and assert <span class="ep">mock:out</span> stays at 2 — proving the key is remembered for the whole run, not just against the previous message.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>An Idempotent Consumer processes each message exactly once by remembering an idempotency key and dropping duplicate deliveries.</li>
+        <li><span class="ep">idempotentConsumer(key, repository)</span> is the Camel DSL — the key must be stable across every copy of the same logical message.</li>
+        <li>The repository is swappable: in-memory for one JVM and tests, JDBC / Redis / Infinispan for restart-safe, cluster-wide dedup.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="19-dead-letter-channel.html"><div class="dir">← Previous</div>19 · Dead Letter Channel</a>
+      <a class="next" href="21-request-reply-and-event-message.html"><div class="dir">Next →</div>21 · Request-Reply &amp; Events</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Message Channel &amp; Endpoint: direct: vs seda: | EIP Hands-On</title>
+  <meta name="description" content="Message Channel &amp; Endpoint in Apache Camel: wire two routes over an in-memory channel and feel synchronous direct: versus asynchronous seda:, with a real test.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/04-message-channel-and-endpoint.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Message Channel &amp; Endpoint: direct: vs seda:">
+  <meta property="og:description" content="Connect two routes over an in-memory channel and feel synchronous direct: versus asynchronous seda:, with a runnable Camel route and test.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/04-message-channel-and-endpoint.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Message Channel &amp; Endpoint: direct: vs seda:">
+  <meta name="twitter:description" content="Feel synchronous direct: versus asynchronous seda: with two joined Apache Camel routes.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Message Channel & Endpoint: direct: vs seda:", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/04-message-channel-and-endpoint.html" } ] },
+      { "@type": "LearningResource", "name": "Message Channel & Endpoint: direct: vs seda:",
+        "description": "Connect two Apache Camel routes over an in-memory Message Channel and compare synchronous direct: with asynchronous seda: endpoints.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Message Channel & Endpoint (Enterprise Integration Pattern)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/04-message-channel-and-endpoint">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Foundations › <span>04 · Message Channel &amp; Endpoint</span></p>
+    <h1>Message Channel &amp; Endpoint: direct: vs seda:</h1>
+    <p class="objective"><b>Connect two routes over an in-memory Message Channel</b> and feel the difference between a <em>synchronous</em> channel and an <em>asynchronous</em> one — the choice between <span class="ep">direct:</span> and <span class="ep">seda:</span>.</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>A <b>Message Channel</b> is a named endpoint URI that carries messages between routes. A <b>Message Endpoint</b> is where a route attaches to that channel: <span class="ep">from(...)</span> is a <em>consumer</em> endpoint, <span class="ep">to(...)</span> is a <em>producer</em> endpoint. The channel's <em>scheme</em> decides its behaviour. <span class="ep">direct:</span> is <b>synchronous</b> — the message is handled on the <em>caller's own thread</em>, and any exception propagates straight back. <span class="ep">seda:</span> is <b>asynchronous</b> — <span class="ep">to("seda:work")</span> drops the message on an in-memory queue and returns immediately; a background consumer thread picks it up later. That queue is memory-only — <em>not durable</em>: if the JVM stops, anything still queued is lost.</p>
+
+      <h2>The scenario</h2>
+      <p>Orders arrive on the synchronous channel <span class="ep">direct:orders</span>. The <b>intake</b> route does a quick hand-off to the asynchronous channel <span class="ep">seda:work</span> and returns. The <b>process</b> route drains <span class="ep">seda:work</span> with two background consumers and forwards to <span class="ep">ep.out</span>. Because the two routes are joined by <span class="ep">seda:</span>, processing runs on a <em>different thread</em> from whoever submitted the order — the app logs both thread names so you can watch it happen.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="A caller submits synchronously on its own thread to direct:orders; the intake route hands off asynchronously to the seda:work queue; two background consumer threads drain it into the process route, which forwards to ep.out.">
+          <div class="step"><span class="lbl">caller</span><span class="sub">its own thread</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">direct:orders</span><span class="sub">sync entry channel</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">intake route</span><span class="sub">quick hand-off</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">seda:work</span><span class="sub">async in-memory queue</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">process route</span><span class="sub">2 background threads</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">ep.out</span><span class="sub">terminal endpoint</span></div>
+        </div>
+        <figcaption>direct:orders (sync, caller thread) → intake → seda:work (async queue) → process (2 threads) → ep.out</figcaption>
+      </figure>
+
+      <h2>The routes</h2>
+      <div class="code"><div class="code-head"><span>IntakeRoute.java + ProcessRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>// --- IntakeRoute: the producing side of the channel ---
+from("direct:orders")                                        // (1) synchronous entry channel — runs on the caller's thread
+    .routeId("intake")                                       //     always name a route (tracing, metrics, tests)
+    .log("intake received '${body}' on thread ${threadName}")
+    .to("seda:work");                                        // (2) async in-memory queue — hand off and return immediately
+
+// --- ProcessRoute: the consuming side of seda:work ---
+from("seda:work?concurrentConsumers=2")                      // (3) async consumer — 2 background worker threads
+    .routeId("process")
+    .setHeader("processingThread", simple("${threadName}"))  // (4) record which thread actually did the work
+    .log("process handling '${body}' on thread ${threadName}")
+    .to("{{ep.out}}");                                       // (5) placeholder terminal: log: (run) / mock: (test)</code></pre></div>
+      <ol>
+        <li><b>(1)</b> <span class="ep">intake</span> consumes from <span class="ep">direct:orders</span> — a synchronous channel, so this runs on whoever called it, on their own thread.</li>
+        <li><b>(2)</b> <span class="ep">.to("seda:work")</span> is the async hand-off: it enqueues the message and returns immediately, without waiting for the work to finish.</li>
+        <li><b>(3)</b> <span class="ep">process</span> consumes <span class="ep">seda:work?concurrentConsumers=2</span>, so the work runs on one of two background worker threads.</li>
+        <li><b>(4)</b> it stamps the actual worker thread name onto the <span class="ep">processingThread</span> header — that is exactly what the test inspects to prove the async hop.</li>
+        <li><b>(5)</b> <span class="ep">{{ep.out}}</span> is a property placeholder: a <span class="ep">log:</span> endpoint when you run the app, a <span class="ep">mock:</span> endpoint under test.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/04-message-channel-and-endpoint spring-boot:run</code></pre></div>
+      <p>A demo feeder injects a sample order every 3 seconds, so you'll see paired lines — <span class="ep">intake received 'order-1001' on thread ...main...</span> immediately followed by <span class="ep">process handling 'order-1001' on thread ...seda://work...</span>. Different threads: that's the async hop. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>MessageChannelAndEndpointTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void processingRunsOnADifferentThreadThanTheCaller() throws Exception {
+    out.expectedMessageCount(1);
+    String callerThread = Thread.currentThread().getName();
+
+    template.sendBody("direct:orders", "PING");
+
+    out.assertIsSatisfied();
+
+    // The process route stamped the thread it actually ran on. Because the hop is via seda:,
+    // that is a background consumer thread, never the caller's (this JUnit) thread.
+    String processingThread =
+        out.getReceivedExchanges().get(0).getMessage().getHeader("processingThread", String.class);
+    assertNotNull(processingThread, "process route should record the thread it ran on");
+    assertNotEquals(callerThread, processingThread,
+        "seda: should hand the message to a background consumer thread, not the caller's thread");
+}</code></pre></div>
+      <p>In the test profile <span class="ep">ep.out</span> resolves to <span class="ep">mock:out</span>, so we can assert exactly what crossed the <span class="ep">seda:work</span> channel — no broker required. Because <span class="ep">seda:</span> is asynchronous, <span class="ep">assertIsSatisfied</span> waits (default 10s) for the queued hop to finish before checking. Run just the tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/04-message-channel-and-endpoint test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Change <span class="ep">seda:work</span> to <span class="ep">direct:work</span> in both routes and rerun the tests. Watch <span class="ep">processingRunsOnADifferentThreadThanTheCaller</span> fail — with <span class="ep">direct:</span> the work runs on the caller's own thread, so the two thread names now match.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>A Message Channel is a named endpoint URI; <span class="ep">from(...)</span> is a consumer endpoint and <span class="ep">to(...)</span> a producer endpoint.</li>
+        <li><span class="ep">direct:</span> is synchronous (caller's thread, exceptions propagate back); <span class="ep">seda:</span> is asynchronous (in-memory queue, background threads, not durable).</li>
+        <li>Property-placeholder endpoints like <span class="ep">{{ep.out}}</span> let the same route run real in production and assert against <span class="ep">mock:</span> in tests.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="03-your-first-route.html"><div class="dir">← Previous</div>03 · Your First Route</a>
+      <a class="next" href="05-message-and-exchange.html"><div class="dir">Next →</div>05 · Message &amp; Exchange</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

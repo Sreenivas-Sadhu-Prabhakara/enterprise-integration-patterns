@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wire Camel — one starter, no versions | EIP Hands-On</title>
+  <meta name="description" content="Add Apache Camel to a plain Spring Boot app and prove it boots: the one starter that auto-wires a CamelContext, the BOM so you never write a version.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/02-wire-camel.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Wire Camel: the BOM &amp; One-Starter-Per-Component">
+  <meta property="og:description" content="Add Apache Camel to a plain Spring Boot app and prove it boots, with a runnable heartbeat route and a wiring test.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/02-wire-camel.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Wire Camel: the BOM &amp; One-Starter-Per-Component">
+  <meta name="twitter:description" content="One starter auto-wires the CamelContext; the BOM means you never write a version.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Wire Camel: the BOM & One-Starter-Per-Component", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/02-wire-camel.html" } ] },
+      { "@type": "LearningResource", "name": "Wire Camel: the BOM & One-Starter-Per-Component",
+        "description": "Add Apache Camel to a plain Spring Boot app and prove it boots: one starter auto-wires the CamelContext, the BOM supplies every version, and one starter is needed per URI scheme.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Wiring Apache Camel into Spring Boot (the BOM and one-starter-per-component)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/02-wire-camel">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Foundations › <span>02 · Wire Camel</span></p>
+    <h1>Wire Camel: the BOM &amp; One-Starter-Per-Component</h1>
+    <p class="objective"><b>Add Apache Camel to a plain Spring Boot app — and prove it boots.</b> The smallest possible first step before any pattern, plus the three facts that make Camel-on-Spring-Boot painless.</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>"Adding Camel" is not a framework rewrite — it is adding <b>one dependency</b>. Put <span class="ep">camel-spring-boot-starter</span> on the classpath and Spring Boot auto-creates a single <span class="ep">CamelContext</span> and auto-discovers every <span class="ep">RouteBuilder</span> you mark <span class="ep">@Component</span>. Two more facts round it out: the imported Camel Spring Boot <b>BOM</b> supplies every version, so you never write a <span class="ep">&lt;version&gt;</span>; and the rule is <b>one starter per URI scheme</b> — camel-core's built-in schemes come free, everything else needs its own <span class="ep">camel-&lt;name&gt;-starter</span>.</p>
+
+      <h2>The scenario</h2>
+      <p>There is no business scenario yet — this module <em>is</em> the wiring lesson. A <b>heartbeat</b> route fires from <span class="ep">timer:hello</span> about once a second and writes a constant body to <span class="ep">log:hello</span>: if you see the line, Camel started. A <b>ping/pong</b> route reads <span class="ep">direct:ping</span>, prepends <span class="ep">"pong:"</span>, and sends it to <span class="ep">{{ep.out}}</span> — a property placeholder resolving to <span class="ep">log:out</span> when you run and <span class="ep">mock:out</span> in tests. Every scheme here (<span class="ep">timer:</span>, <span class="ep">log:</span>, <span class="ep">direct:</span>, <span class="ep">mock:</span>) is built into camel-core, so no extra starter is needed.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="timer:hello, gated by app.demo.enabled, sets a constant body and writes to log:hello; separately direct:ping is transformed to prepend pong: and sent to ep.out.">
+          <div class="step"><span class="lbl">timer:hello</span><span class="sub">~every 1s</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">set constant body</span><span class="sub">autoStartup gate</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">log:hello</span><span class="sub">heartbeat ✅</span></div>
+        </div>
+        <div class="flow" role="img" aria-label="direct:ping is transformed to prepend pong: and sent to ep.out.">
+          <div class="step"><span class="lbl">direct:ping</span><span class="sub">request</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">transform</span><span class="sub">prepend 'pong:'</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">{{ep.out}}</span><span class="sub">log:out / mock:out</span></div>
+        </div>
+        <figcaption>timer:hello → log:hello (heartbeat) · direct:ping → transform 'pong:' → ep.out</figcaption>
+      </figure>
+
+      <h2>The routes</h2>
+      <div class="code"><div class="code-head"><span>HelloTimerRoute.java · PingRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Component
+public class HelloTimerRoute extends RouteBuilder {
+    public void configure() {
+        from("timer:hello?period=1000")             // (1) timer: — built into camel-core, no starter
+            .autoStartup("{{app.demo.enabled}}")    // (2) on for `run`, off for tests (a property)
+            .routeId("hello-timer")                 //     always name a route
+            .setBody(constant("Camel is wired and running ✅"))
+            .to("log:hello?showBody=true");         //     log: — also built-in
+    }
+}
+
+@Component
+public class PingRoute extends RouteBuilder {
+    public void configure() {
+        from("direct:ping")                         // (3) direct: — built-in, in-memory, synchronous
+            .routeId("ping")
+            .transform(simple("pong:${body}"))      // (4) prepend "pong:" to whatever came in
+            .to("{{ep.out}}");                      // (5) placeholder: log:out (run) / mock:out (test)
+    }
+}</code></pre></div>
+      <ol>
+        <li><b>(1)</b> <span class="ep">timer:</span> fires roughly once a second; it and <span class="ep">log:</span> are built into camel-core, so neither needs an extra <span class="ep">-starter</span>.</li>
+        <li><b>(2)</b> <span class="ep">.autoStartup("{{app.demo.enabled}}")</span> gates the heartbeat — <span class="ep">true</span> for <span class="ep">run</span>, <span class="ep">false</span> for tests — so tests never see timer noise.</li>
+        <li><b>(3)</b> <span class="ep">direct:</span> is a synchronous in-memory channel, also built-in, giving the test a deterministic entry point.</li>
+        <li><b>(4)</b> <span class="ep">transform(simple("pong:${body}"))</span> prepends <span class="ep">"pong:"</span> using the Simple language camel-core ships.</li>
+        <li><b>(5)</b> <span class="ep">{{ep.out}}</span> is a property placeholder: <span class="ep">log:out</span> when the app runs, <span class="ep">mock:out</span> in tests — same route, two wirings.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/02-wire-camel spring-boot:run</code></pre></div>
+      <p>Once up, the heartbeat logs <span class="ep">Camel is wired and running ✅</span> every second — that line is your proof Camel booted. Behind a firewall or no Red Hat access? Add <span class="ep">-P upstream</span> for plain Apache Camel.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>WireCamelTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void camelContextWasAutoCreatedAndRoutesDiscovered() {
+    // Proof that the one starter wired Camel: the context exists and both @Component routes loaded.
+    assertNotNull(context, "camel-spring-boot-starter should auto-create a CamelContext");
+    assertNotNull(context.getRoute("ping"), "PingRoute should be auto-discovered");
+    assertNotNull(context.getRoute("hello-timer"), "HelloTimerRoute should be auto-discovered");
+}</code></pre></div>
+      <p>This is the spec for the whole module: adding one starter really did create a <span class="ep">CamelContext</span> and auto-discover <b>both</b> <span class="ep">@Component</span> routes by ID. Two sibling tests then prove behaviour — a reply on <span class="ep">mock:out</span> that <b>starts with</b> <span class="ep">pong:</span>, and that it prepends the original body exactly (<span class="ep">pong:hello</span>). Run just the tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/02-wire-camel test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Point a route at a scheme with no starter — e.g. <span class="ep">.to("jms:queue:demo")</span> — and watch Camel fail fast at startup with <span class="ep">No component found with scheme: jms</span>. The fix is never a version; it is adding <span class="ep">camel-jms-starter</span>, because the BOM supplies the version.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>Adding Camel is adding one dependency: <span class="ep">camel-spring-boot-starter</span> auto-creates the <span class="ep">CamelContext</span> and auto-discovers every <span class="ep">@Component</span> <span class="ep">RouteBuilder</span>.</li>
+        <li>The Camel Spring Boot BOM supplies every version, so you never write a <span class="ep">&lt;version&gt;</span> for a <span class="ep">camel-*</span> dependency.</li>
+        <li>One starter per URI scheme — camel-core's <span class="ep">timer:</span>/<span class="ep">log:</span>/<span class="ep">direct:</span>/<span class="ep">mock:</span> are free; any other scheme needs its own <span class="ep">camel-&lt;name&gt;-starter</span> or Camel fails fast at startup.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="01-spring-boot-primer.html"><div class="dir">← Previous</div>01 · Spring Boot primer</a>
+      <a class="next" href="03-your-first-route.html"><div class="dir">Next →</div>03 · Your First Route</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

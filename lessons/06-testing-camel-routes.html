@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Camel Route Testing — MockEndpoint &amp; AdviceWith | EIP Hands-On</title>
+  <meta name="description" content="Test Apache Camel routes in memory with MockEndpoint, ProducerTemplate, NotifyBuilder, and AdviceWith — no broker. Assert which branch fired, then run it.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/06-testing-camel-routes.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Testing Camel Routes: MockEndpoint &amp; AdviceWith">
+  <meta property="og:description" content="Prove a Camel route in memory with MockEndpoint, NotifyBuilder, and AdviceWith — no broker, just a runnable JUnit spec.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/06-testing-camel-routes.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Testing Camel Routes: MockEndpoint &amp; AdviceWith">
+  <meta name="twitter:description" content="Test Camel routes in memory with MockEndpoint and AdviceWith — the test is the spec.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Testing Camel Routes: MockEndpoint & AdviceWith", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/06-testing-camel-routes.html" } ] },
+      { "@type": "LearningResource", "name": "Testing Camel Routes: MockEndpoint & AdviceWith",
+        "description": "Test Apache Camel routes in memory with MockEndpoint, ProducerTemplate, NotifyBuilder, and AdviceWith — no broker required.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Testing Camel Routes (MockEndpoint, NotifyBuilder, AdviceWith)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/06-testing-camel-routes">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Foundations › <span>06 · Testing Camel Routes</span></p>
+    <h1>Testing Camel Routes: MockEndpoint &amp; AdviceWith</h1>
+    <p class="objective"><b>Prove a route does exactly what you claim — in memory, with no broker.</b> This module is not a new EIP: it is the Camel <span class="ep">test toolkit</span> itself — <span class="ep">MockEndpoint</span>, <span class="ep">ProducerTemplate</span>, <span class="ep">NotifyBuilder</span>, and <span class="ep">AdviceWith</span>.</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>A route is a claim: "send this in, that comes out over there." A test turns the claim into an executable spec. Camel ships a small toolkit for it that runs entirely in memory: a <span class="ep">MockEndpoint</span> records every message so you can assert what arrived and where; a <span class="ep">ProducerTemplate</span> feeds messages in; a <span class="ep">NotifyBuilder</span> waits for asynchronous routes to settle; and <span class="ep">AdviceWith</span> rewrites a route at test time without touching production code. No broker, no network — the tests are fast and deterministic.</p>
+
+      <h2>The scenario</h2>
+      <p>ShopFlow needs its routes covered by fast tests. We put two deliberately trivial routes under test. The <span class="ep">sample</span> route is InOnly: bodies containing <b>VIP</b> go to <span class="ep">ep.a</span> (priority), everything else goes to <span class="ep">ep.b</span> (standard). The <span class="ep">echo</span> route is InOut: it transforms the body to <span class="ep">echo:&lt;body&gt;</span> and returns it. The branch targets are property placeholders (<span class="ep">{{ep.a}}</span>, <span class="ep">{{ep.b}}</span>) so tests resolve them to <span class="ep">mock:priority</span> / <span class="ep">mock:standard</span> and assert exactly which branch a message took.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="direct:orders enters a choice on whether the body contains VIP, branching to ep.a priority or ep.b standard, then AdviceWith taps the output to mock:tap; direct:echo transforms and replies.">
+          <div class="step"><span class="lbl">direct:orders</span><span class="sub">incoming order</span></div>
+          <div class="arrow">→</div>
+          <div class="step decision"><span class="lbl">choice()</span><span class="sub">body contains 'VIP'?</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">→ ep.a</span><span class="sub">VIP · priority</span></div>
+          <div class="step"><span class="lbl">→ ep.b</span><span class="sub">otherwise · standard</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">mock:tap</span><span class="sub">AdviceWith weaveAddLast</span></div>
+        </div>
+        <figcaption>direct:orders → choice(VIP?) → ep.a | ep.b → (AdviceWith) mock:tap  ;  direct:echo → transform → reply</figcaption>
+      </figure>
+
+      <h2>The routes</h2>
+      <div class="code"><div class="code-head"><span>SampleRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:orders")
+    .routeId("sample")                                 // (1) ALWAYS name a route — tests advise it by id
+    .log("sample received: ${body}")
+    .choice()                                          // (2) an InOnly content-based split
+        .when(simple("${body} contains 'VIP'"))        // (3) the branch a MockEndpoint asserts on
+            .to("{{ep.a}}")                            //     priority lane  (mock:priority in tests)
+        .otherwise()                                   // (4) everything else
+            .to("{{ep.b}}")                            //     standard lane  (mock:standard in tests)
+    .end();
+
+from("direct:echo")                                    // (5) an InOut (request/reply) route
+    .routeId("echo")
+    .transform(simple("echo:${body}"));                //     transform() sets the reply body</code></pre></div>
+      <ol>
+        <li><b>(1)</b> the route consumes from an in-memory <span class="ep">direct:</span> channel; naming it lets <span class="ep">AdviceWith</span> target it by id at test time.</li>
+        <li><b>(2)</b> <span class="ep">choice()</span> opens a content-based split; the two lanes are <span class="ep">{{ep.*}}</span> placeholders so production points them at real endpoints while tests point them at mocks.</li>
+        <li><b>(3)(4)</b> the Simple predicate <span class="ep">${body} contains 'VIP'</span> sends VIP orders to the priority lane; <span class="ep">otherwise()</span> catches the rest.</li>
+        <li><b>(5)</b> a second, InOut route transforms the body to <span class="ep">echo:&lt;body&gt;</span> and returns it — the target for a <span class="ep">requestBody</span> request/reply test.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/06-testing-camel-routes spring-boot:run</code></pre></div>
+      <p>A demo feeder injects a rotating body every 3s (<span class="ep">VIP order #N</span> / <span class="ep">standard order #N</span>), so you can watch the <span class="ep">sample</span> route log each message and land it on the matching branch. Behind a firewall? Add <span class="ep">-P upstream</span> for plain Apache Camel.</p>
+
+      <h2>The test is the spec</h2>
+      <p>Each method demonstrates one technique. First, a <span class="ep">MockEndpoint</span> declares up-front what should arrive — <span class="ep">expectedBodiesReceived</span> also pins the exact count — then <span class="ep">assertIsSatisfied</span> verifies it:</p>
+      <div class="code"><div class="code-head"><span>SampleRouteTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void vipBodyReachesPriorityWithExpectedBody() throws Exception {
+    priority.expectedBodiesReceived("VIP order for alice");
+    standard.expectedMessageCount(0);
+
+    template.sendBody("direct:orders", "VIP order for alice");
+
+    MockEndpoint.assertIsSatisfied(context);
+}</code></pre></div>
+      <p>In the test profile <span class="ep">{{ep.a}}</span>/<span class="ep">{{ep.b}}</span> resolve to <span class="ep">mock:priority</span> and <span class="ep">mock:standard</span>, so the test proves the VIP body took the priority branch and nowhere else. Next, <span class="ep">AdviceWith</span> rewrites the route at test time — weaving <span class="ep">mock:tap</span> onto the end so we can assert on the output no matter which branch fired. Because it needs a not-yet-started context (<span class="ep">@UseAdviceWith</span>), it lives in its own class:</p>
+      <div class="code"><div class="code-head"><span>AdviceWithSampleRouteTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void weaveAddLastLetsUsTapTheRouteOutput() throws Exception {
+    // (1) Weave an extra step onto the END of the "sample" route — runs after whichever branch fired.
+    AdviceWith.adviceWith(context, "sample", rb -&gt; rb.weaveAddLast().to("mock:tap"));
+
+    // (2) With @UseAdviceWith the context is NOT auto-started — start it now that weaving is done.
+    context.start();
+
+    // (3) Exercise and assert. A non-VIP body takes the otherwise branch, then still hits mock:tap.
+    tap.expectedBodiesReceived("weekend delivery");
+
+    template.sendBody("direct:orders", "weekend delivery");
+
+    tap.assertIsSatisfied();
+}</code></pre></div>
+      <p>Run just the tests — two classes, five methods, no broker:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/06-testing-camel-routes test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Weave a <span class="ep">mock:tap</span> onto the <span class="ep">echo</span> route with <span class="ep">AdviceWith</span> and assert that <span class="ep">echo:hello</span> flows out — or add a <span class="ep">NotifyBuilder</span> that waits for one exchange from <span class="ep">direct:echo</span> to complete.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>A <span class="ep">MockEndpoint</span> records messages so you assert exactly which branch a message took — the test becomes the route's spec.</li>
+        <li><span class="ep">sendBody</span> drives InOnly routes, <span class="ep">requestBody</span> drives InOut and returns the reply, and <span class="ep">NotifyBuilder</span> waits for asynchronous completion.</li>
+        <li><span class="ep">AdviceWith</span> rewrites a route at test time (<span class="ep">weaveAddLast().to("mock:tap")</span>) without touching production code — but it needs <span class="ep">@UseAdviceWith</span> and a manual <span class="ep">context.start()</span>.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="05-message-and-exchange.html"><div class="dir">← Previous</div>05 · Message &amp; Exchange</a>
+      <a class="next" href="07-error-handling-basics.html"><div class="dir">Next →</div>07 · Error handling</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

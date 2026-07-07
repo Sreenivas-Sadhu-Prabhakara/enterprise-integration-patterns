@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>About — an open-source EIP course | EIP Hands-On</title>
+  <meta name="description" content="About EIP Hands-On: a free, open-source course teaching Enterprise Integration Patterns with Apache Camel and Spring Boot — licensing and how to contribute.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/about.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="About — an open-source EIP course">
+  <meta property="og:description" content="A free, open-source course on Enterprise Integration Patterns with Apache Camel and Spring Boot.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/about.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="About — an open-source EIP course">
+  <meta name="twitter:description" content="A free, open-source EIP course on Apache Camel + Spring Boot.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+    { "@type": "ListItem", "position": 2, "name": "About", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/about.html" } ] }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="index.html">Home</a><a href="curriculum.html">Curriculum</a><a href="setup.html">Setup</a><a href="glossary.html">Glossary</a><a href="about.html" aria-current="page">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <section class="lesson wrap">
+    <p class="kicker">About</p>
+    <h1>A course you can run, not just read.</h1>
+    <div class="prose">
+      <p class="lead muted">Most EIP material is either a reference catalog or a wall of prose. This course is neither: every pattern is a small Maven module you clone, run, and prove with a test.</p>
+
+      <h2>Why it exists</h2>
+      <p>Enterprise Integration Patterns are the vocabulary of system-to-system messaging. They're easy to nod along to and hard to actually build. So here each pattern is taught as a solution to one concrete problem in a running online store — <b>ShopFlow</b> — with a diagram, an annotated route, and a passing test that <em>is</em> the specification.</p>
+
+      <h2>How it's built</h2>
+      <ul>
+        <li><b>Stack:</b> the Red Hat build of Apache Camel for Spring Boot (Camel 4.18, Spring Boot 3.5, JDK 17/21), with a plain Apache Camel fallback.</li>
+        <li><b>Every module</b> is identical in shape: a route, a JUnit 5 test, a README with a message-flow diagram, and sample data.</li>
+        <li><b>Continuously verified:</b> CI builds and tests all modules on JDK 17 and 21, against both the Red Hat and upstream Camel builds.</li>
+      </ul>
+
+      <h2>License</h2>
+      <p>The <a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">source code</a> is licensed under <b>Apache-2.0</b>. This website and all course prose and diagrams are licensed under <b>CC-BY-4.0</b> — reuse them in your own teaching, just credit the project.</p>
+
+      <h2>Contribute</h2>
+      <p>New patterns, clearer explanations, fixes, and translations are welcome. See <a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/blob/main/CONTRIBUTING.md">CONTRIBUTING</a> for the one-module contract and sign-off.</p>
+
+      <h2>Trademarks</h2>
+      <p>“Red Hat” and “Red Hat build of Apache Camel” are trademarks of Red Hat, Inc. “Apache”, “Apache Camel”, “Apache Kafka”, and “Apache ActiveMQ Artemis” are trademarks of The Apache Software Foundation. “Spring” and “Spring Boot” are trademarks of Broadcom Inc. This is an independent educational project and is not affiliated with, sponsored by, or endorsed by them.</p>
+
+      <p style="margin-top:26px"><a class="btn btn-primary" href="curriculum.html">Browse the curriculum →</a></p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="curriculum.html">Curriculum</a><a href="setup.html">Setup</a><a href="glossary.html">Glossary</a><a href="about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="assets/js/nav.js"></script>
+</body>
+</html>

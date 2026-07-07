@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pipes and Filters — a pipeline of steps | EIP Hands-On</title>
+  <meta name="description" content="Learn the Pipes and Filters pattern in Apache Camel: chain small single-responsibility beans into a reusable pipeline you can reorder and unit-test.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/08-pipes-and-filters.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Pipes and Filters — a pipeline of reusable steps">
+  <meta property="og:description" content="Chain small single-responsibility filters into a Camel pipeline you can reuse, reorder, and unit-test, with a runnable route and test.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/08-pipes-and-filters.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Pipes and Filters — a pipeline of reusable steps">
+  <meta name="twitter:description" content="Chain small single-responsibility filters into a reusable Camel pipeline you can reorder and unit-test.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Pipes and Filters", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/08-pipes-and-filters.html" } ] },
+      { "@type": "LearningResource", "name": "Pipes and Filters",
+        "description": "Compose behaviour from a chain of small, single-responsibility filters connected by channels (pipes) using Apache Camel's default pipeline.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Pipes and Filters (Enterprise Integration Pattern)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/08-pipes-and-filters">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Routing › <span>08 · Pipes and Filters</span></p>
+    <h1>Pipes and Filters: a Pipeline of Reusable Steps</h1>
+    <p class="objective"><b>Compose behaviour from a chain of small, single-responsibility steps connected by channels.</b> Reach for it whenever a task is really several small transformations in a row.</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>Think of an assembly line: each station does one small job and hands the work to the next. Pipes and Filters structures a message flow the same way — independent processing steps ("filters") connected by channels ("pipes"). In Camel a plain sequence of <span class="ep">.bean(...)</span> / <span class="ep">.to(...)</span> calls <b>is</b> the pipeline: each step receives the previous step's output as its input. Because each filter does exactly one thing, you can reason about it, <b>reuse</b> it, reorder it, and unit-test it in isolation.</p>
+
+      <h2>The scenario</h2>
+      <p>An incoming ShopFlow order needs three independent bits of processing before it moves on. Rather than one big method, each is its own <span class="ep">@Component</span> filter: <span class="ep">NormalizeBean</span> trims and upper-cases the <span class="ep">country</span> (<span class="ep">&nbsp;in&nbsp;</span> → <span class="ep">IN</span>), <span class="ep">EnrichBean</span> stamps a <span class="ep">receivedAt</span> timestamp, and <span class="ep">ValidateBean</span> rejects the order if its <span class="ep">orderId</span> is missing. The output channel is a placeholder <span class="ep">{{ep.out}}</span> — a <span class="ep">log:</span> endpoint when you run the app, a <span class="ep">mock:</span> endpoint under test.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="direct:orders flows through NormalizeBean, then EnrichBean, then ValidateBean, then out to ep.out.">
+          <div class="step"><span class="lbl">direct:orders</span><span class="sub">incoming order</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">NormalizeBean</span><span class="sub">trim + upper-case country</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">EnrichBean</span><span class="sub">stamp receivedAt</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">ValidateBean</span><span class="sub">require orderId</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">ep.out</span><span class="sub">output channel</span></div>
+        </div>
+        <figcaption>direct:orders → NormalizeBean → EnrichBean → ValidateBean → ep.out</figcaption>
+      </figure>
+
+      <h2>The route</h2>
+      <div class="code"><div class="code-head"><span>PipesAndFiltersRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:orders")                 // (1) the channel orders arrive on
+    .routeId("pipeline")              //     always name a route (tracing, metrics, tests)
+    .log("Pipeline in:  ${body}")
+    .bean(NormalizeBean.class)        // (2) filter: trim + upper-case the country
+    .bean(EnrichBean.class)           // (3) filter: stamp a receivedAt timestamp
+    .bean(ValidateBean.class)         // (4) filter: reject the order if orderId is missing
+    .log("Pipeline out: ${body}")
+    .to("{{ep.out}}");                // (5) the pipeline's output channel</code></pre></div>
+      <ol>
+        <li><b>(1)</b> the route consumes orders from an in-memory <span class="ep">direct:</span> channel; <span class="ep">routeId</span> names the pipeline for tracing and tests.</li>
+        <li><b>(2)</b> <span class="ep">NormalizeBean</span> is the first filter — it trims and upper-cases the country so every later stage can rely on a canonical <span class="ep">IN</span>.</li>
+        <li><b>(3)</b> <span class="ep">EnrichBean</span> stamps a <span class="ep">receivedAt</span> timestamp; its output becomes the next filter's input automatically.</li>
+        <li><b>(4)</b> <span class="ep">ValidateBean</span> is the last filter — it throws if <span class="ep">orderId</span> is missing, so a bad order never reaches the output.</li>
+        <li><b>(5)</b> the output target is a <span class="ep">{{ep.out}}</span> placeholder, so production points it at a real channel while tests point it at a mock.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/08-pipes-and-filters spring-boot:run</code></pre></div>
+      <p>A demo feeder injects a rotating <b>messy</b> sample order every 3s — watch the raw body logged at <span class="ep">Pipeline in:</span> (e.g. <span class="ep">country=' in '</span>) come out at <span class="ep">Pipeline out:</span> normalised to <span class="ep">country='IN'</span> with a <span class="ep">receivedAt</span> timestamp. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>PipesAndFiltersTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void pipelineNormalisesAndEnriches() throws Exception {
+    out.expectedMessageCount(1);
+
+    // Raw input: country has surrounding spaces and is lower-cased.
+    template.sendBody("direct:orders", new Order("A-1001", "  in  ", 999));
+
+    out.assertIsSatisfied();
+
+    Order result = out.getReceivedExchanges().get(0).getIn().getBody(Order.class);
+    assertEquals("IN", result.getCountry(), "NormalizeBean should trim + upper-case the country");
+    assertNotNull(result.getReceivedAt(), "EnrichBean should stamp a receivedAt timestamp");
+    assertEquals("A-1001", result.getOrderId(), "orderId should flow through untouched");
+}</code></pre></div>
+      <p>In the test profile <span class="ep">{{ep.out}}</span> resolves to <span class="ep">mock:out</span>, so the test inspects the body the pipeline emits after all three filters have run — proving it is normalised and enriched. A companion test sends an order with no <span class="ep">orderId</span> and asserts it is rejected before reaching the output. Run just the tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/08-pipes-and-filters test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Add a fourth filter — a <span class="ep">MaskBean</span> that redacts the customer's email — as its own <span class="ep">@Component</span>, drop it into the chain with one <span class="ep">.bean(MaskBean.class)</span> call, and write a plain unit test for it in isolation (no Spring), like <span class="ep">NormalizeBeanTest</span>.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>Pipes and Filters composes a task from small single-responsibility steps ("filters") connected by channels ("pipes").</li>
+        <li>A chain of <span class="ep">.bean(...)</span> / <span class="ep">.to(...)</span> calls <em>is</em> Camel's default pipeline — each step's output is the next step's input.</li>
+        <li>Small filters are independently reusable, reorderable, and unit-testable, as <span class="ep">NormalizeBeanTest</span> proves in microseconds.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="07-error-handling-basics.html"><div class="dir">← Previous</div>07 · Error handling</a>
+      <a class="next" href="09-message-filter.html"><div class="dir">Next →</div>09 · Message Filter</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

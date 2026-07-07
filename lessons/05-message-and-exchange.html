@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Message &amp; Exchange — bodies &amp; headers | EIP Hands-On</title>
+  <meta name="description" content="Learn the Message and Exchange in Apache Camel: read the body and lift fields into headers, imperatively with a Processor and declaratively via setHeader.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/05-message-and-exchange.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="The Message &amp; the Exchange — bodies, headers, processors">
+  <meta property="og:description" content="Read the body and lift routing fields into headers — imperatively with a Processor and declaratively with setHeader — in a runnable Camel route and test.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/05-message-and-exchange.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="The Message &amp; the Exchange — bodies, headers, processors">
+  <meta name="twitter:description" content="The two objects every Camel route is built around: set and read headers imperatively and declaratively.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "The Message & the Exchange", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/05-message-and-exchange.html" } ] },
+      { "@type": "LearningResource", "name": "The Message & the Exchange: Bodies, Headers, Processors",
+        "description": "Understand the Exchange envelope and the Message (body + headers), and set headers two ways in Apache Camel — imperatively with a Processor and declaratively with setHeader.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "The Message and the Exchange (Apache Camel core model)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/05-message-and-exchange">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Foundations › <span>05 · Message &amp; Exchange</span></p>
+    <h1>The Message &amp; the Exchange: Bodies, Headers, Processors</h1>
+    <p class="objective"><b>Meet the two objects every Camel route is built around — and learn to set and read headers.</b> The Exchange is the envelope; the Message inside it is a body plus the headers later EIPs route on.</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>Every step in a Camel route is handed an <span class="ep">Exchange</span> — the <em>envelope</em> Camel carries down the route, holding an id, exchange properties, and the current message. The <span class="ep">Message</span> is what's inside: <span class="ep">exchange.getMessage()</span> gives you a <b>body</b> (the payload) plus <b>headers</b> (control metadata that travels alongside the body but is <em>not</em> part of it). You'll do the same job two ways — imperatively with a <span class="ep">Processor</span>, and declaratively with the DSL — so the trade-off is concrete.</p>
+
+      <h2>The scenario</h2>
+      <p>An order arrives on <span class="ep">direct:orders</span> as a plain <span class="ep">java.util.Map</span> with <span class="ep">orderId</span>, <span class="ep">country</span>, and <span class="ep">amount</span>. Downstream patterns shouldn't have to re-parse the body every time they need to decide, so we <b>lift the routing-relevant fields up into headers</b> once, at the edge: <span class="ep">orderId</span> and <span class="ep">country</span> imperatively in a Processor, and <span class="ep">amount</span> declaratively with <span class="ep">setHeader</span>.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="direct:orders flows through a Processor that copies orderId and country to headers, then a setHeader that copies amount, then out to ep.out.">
+          <div class="step"><span class="lbl">direct:orders</span><span class="sub">order as a Map</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">process()</span><span class="sub">Processor → orderId, country headers</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">setHeader</span><span class="sub">amount = ${body[amount]}</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">{{ep.out}}</span><span class="sub">log: when run, mock: in tests</span></div>
+        </div>
+        <figcaption>direct:orders → Processor sets orderId,country → setHeader amount → ep.out</figcaption>
+      </figure>
+
+      <h2>The route</h2>
+      <div class="code"><div class="code-head"><span>MessageAndExchangeRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:orders")                                     // (1) orders arrive as a java.util.Map body
+    .routeId("exchange")                                  //     always name a route (tracing, metrics, tests)
+    .log("IN  exchange ${exchangeId}: the Message body (a Map) = ${body}")
+
+    // (2) IMPERATIVE: a Processor reads exchange.getMessage() and copies fields into headers.
+    .process(new OrderHeadersProcessor())
+
+    // (3) DECLARATIVE equivalent: setHeader + the Simple language reading a Map key ${body[key]}.
+    .setHeader("amount", simple("${body[amount]}"))
+
+    // (4) Headers now carry the control metadata later EIPs will route on. Log BOTH.
+    .log("OUT headers (Processor):   orderId=${header.orderId}, country=${header.country}")
+    .log("OUT header  (setHeader):   amount=${header.amount}")
+
+    .to("{{ep.out}}");                                    // (5) placeholder: log: when run, mock: in tests</code></pre></div>
+      <p>The imperative half lives in a plain <span class="ep">Processor</span> — handed the whole Exchange, reaching into the Message:</p>
+      <div class="code"><div class="code-head"><span>OrderHeadersProcessor.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>public void process(Exchange exchange) {
+    // (a) The Exchange is the envelope; the Message is what's inside (body + headers).
+    Message message = exchange.getMessage();
+
+    // (b) getBody(Type) type-converts for you; the body here already is a Map.
+    Map&lt;String, Object&gt; order = message.getBody(Map.class);
+
+    // (c) Lift two body fields into HEADERS — metadata that rides alongside the body.
+    message.setHeader("orderId", order.get("orderId"));
+    message.setHeader("country", order.get("country"));
+}</code></pre></div>
+      <ol>
+        <li><b>(1)</b> the route consumes orders from an in-memory <span class="ep">direct:</span> channel; each body is a <span class="ep">java.util.Map</span>.</li>
+        <li><b>(2)</b> <span class="ep">.process(...)</span> runs the imperative Processor: <b>(a)</b> get the Message off the Exchange, <b>(b)</b> read its body as a Map, <b>(c)</b> copy <span class="ep">orderId</span> and <span class="ep">country</span> into headers.</li>
+        <li><b>(3)</b> the declarative equivalent — <span class="ep">setHeader</span> with the Simple language reading a Map key <span class="ep">${body[amount]}</span> — sets <span class="ep">amount</span> with no Java.</li>
+        <li><b>(4)</b> both headers now ride with the message; we log them to prove it.</li>
+        <li><b>(5)</b> the terminal endpoint is a <span class="ep">{{ep.out}}</span> placeholder, so production points it at a real channel while tests point it at a mock. Prefer <span class="ep">exchange.getMessage()</span> over the older <span class="ep">getIn()</span> — it always returns the message the next step will see.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/05-message-and-exchange spring-boot:run</code></pre></div>
+      <p>A demo feeder injects a rotating sample <span class="ep">Map</span> order every 3s. Because <span class="ep">ep.out</span> is a <span class="ep">log:</span> endpoint showing headers, you'll see each message land with <span class="ep">orderId</span>, <span class="ep">country</span>, and <span class="ep">amount</span> populated — proof the metadata now rides with the message. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>MessageAndExchangeTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void copiesOrderIdAndCountryIntoHeaders() throws Exception {
+    out.expectedMessageCount(1);
+    // Imperative Processor lifted these two body fields into headers:
+    out.expectedHeaderReceived("orderId", "A-2001");
+    out.expectedHeaderReceived("country", "IN");
+    // Declarative setHeader + Simple ${body[amount]} set this one:
+    out.expectedHeaderReceived("amount", 4200);
+
+    Map&lt;String, Object&gt; order = new LinkedHashMap&lt;&gt;();
+    order.put("orderId", "A-2001");
+    order.put("country", "IN");
+    order.put("amount", 4200);
+    template.sendBody("direct:orders", order);
+
+    out.assertIsSatisfied();
+}</code></pre></div>
+      <p>In the test profile <span class="ep">ep.out</span> resolves to <span class="ep">mock:out</span>, so the test sends a <span class="ep">Map</span> order and asserts the message on the mock carries the exact <span class="ep">orderId</span>, <span class="ep">country</span>, and <span class="ep">amount</span> headers — derived from each message, not hardcoded. Run just the tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/05-message-and-exchange test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Add a declarative header <span class="ep">highValue</span> with <span class="ep">setHeader("highValue", simple("${body[amount]} &gt; 1000"))</span>, then write the assertion that proves it is <span class="ep">true</span> for the A-2001 order and <span class="ep">false</span> for one under €1000.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>The <span class="ep">Exchange</span> is the envelope Camel carries down a route; the <span class="ep">Message</span> inside it is a body + headers pair you reach with <span class="ep">exchange.getMessage()</span>.</li>
+        <li>Headers carry control metadata that rides alongside the body, so later EIPs route, filter, and aggregate without re-parsing the payload.</li>
+        <li>You can set a header two ways — imperatively in a <span class="ep">Processor</span> or declaratively with <span class="ep">setHeader(...)</span> + the Simple language — same result, different trade-offs.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="04-message-channel-and-endpoint.html"><div class="dir">← Previous</div>04 · Channel &amp; Endpoint</a>
+      <a class="next" href="06-testing-camel-routes.html"><div class="dir">Next →</div>06 · Testing routes</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

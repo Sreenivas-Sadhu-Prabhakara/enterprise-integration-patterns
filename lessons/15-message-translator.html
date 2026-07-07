@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Message Translator: JSON to POJO with Jackson | EIP Hands-On</title>
+  <meta name="description" content="Learn the Message Translator pattern in Apache Camel: unmarshal legacy JSON to a POJO with Jackson, remap fields and cents to currency, then marshal to JSON.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/15-message-translator.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Message Translator: JSON to POJO with Jackson">
+  <meta property="og:description" content="Unmarshal legacy JSON to a POJO with Jackson, remap fields and cents, then marshal canonical JSON — a runnable Camel route and test.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/15-message-translator.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Message Translator: JSON to POJO with Jackson">
+  <meta name="twitter:description" content="Translate legacy JSON to a canonical POJO and back with Jackson data formats in Camel.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Message Translator", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/15-message-translator.html" } ] },
+      { "@type": "LearningResource", "name": "Message Translator",
+        "description": "Convert a message from one format to another using Apache Camel — unmarshal legacy JSON to a POJO with Jackson, remap fields and units, then marshal canonical JSON.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Message Translator (Enterprise Integration Pattern)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/15-message-translator">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Transformation &amp; messaging › <span>15 · Message Translator</span></p>
+    <h1>Message Translator</h1>
+    <p class="objective"><b>Convert a message from one format to another so two systems that speak different "languages" can integrate.</b> Reach for it whenever an inbound payload doesn't match the shape your system expects.</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>Two systems rarely agree on wording. A Message Translator is the interpreter between them: it sits in the middle and reshapes each message so the receiver understands it. In Camel the work splits in two. A <span class="ep">Data Format</span> — the reusable codec you plug into <span class="ep">unmarshal</span>/<span class="ep">marshal</span> — moves you between bytes/String and a POJO. The translation proper — renaming fields, converting units — lives in a small bean invoked with <span class="ep">.transform().method(...)</span>. Keep the mapping in a bean and the route stays readable and the mapping stays unit-testable on its own.</p>
+
+      <h2>The scenario</h2>
+      <p>A partner posts orders in a terse <b>legacy JSON</b> shape — abbreviated keys and money as an integer number of <b>cents</b>: <span class="ep">{ "id": "A-1001", "cust": "Acme Corp", "amt": 123499, "cur": "USD" }</span>. Our system speaks a clean <b>canonical</b> shape with readable names and money in whole currency units: <span class="ep">{ "orderId": "A-1001", "customer": "Acme Corp", "amount": 1234.99, "currency": "USD" }</span>. The route does it in three moves — <b>unmarshal</b> to a <span class="ep">LegacyOrder</span>, <b>transform</b> to a canonical <span class="ep">Order</span>, then <b>marshal</b> back to JSON.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="direct:orders carries legacy JSON, unmarshalled to a LegacyOrder, transformed by OrderMapper to an Order, marshalled to canonical JSON, then sent to ep.out.">
+          <div class="step"><span class="lbl">direct:orders</span><span class="sub">legacy JSON String</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">unmarshal .json</span><span class="sub">String → LegacyOrder</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">transform .method</span><span class="sub">OrderMapper: rename, cents → currency</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">marshal .json</span><span class="sub">Order → canonical JSON</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">ep.out</span><span class="sub">log: in run, mock: in test</span></div>
+        </div>
+        <figcaption>direct:orders → unmarshal → OrderMapper → marshal → ep.out</figcaption>
+      </figure>
+
+      <h2>The route</h2>
+      <div class="code"><div class="code-head"><span>MessageTranslatorRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:orders")                                         // (1) legacy JSON arrives as a String
+    .routeId("translator")                                    //     always name a route
+    .log("Translating legacy order: ${body}")
+    .unmarshal().json(JsonLibrary.Jackson, LegacyOrder.class)  // (2) Data Format: JSON String -&gt; LegacyOrder
+    .transform().method(OrderMapper.class, "toCanonical")     // (3) Message Translator: LegacyOrder -&gt; Order
+    .marshal().json(JsonLibrary.Jackson)                      // (4) Data Format: Order -&gt; canonical JSON
+    .log("Emitting canonical order: ${body}")
+    .to("{{ep.out}}");                                        // (5) downstream (log: in run, mock: in test)</code></pre></div>
+      <ol>
+        <li><b>(1)</b> the route consumes a legacy JSON <span class="ep">String</span> from an in-memory <span class="ep">direct:</span> channel.</li>
+        <li><b>(2)</b> <span class="ep">unmarshal().json(JsonLibrary.Jackson, LegacyOrder.class)</span> uses the Jackson Data Format to bind the JSON onto a <span class="ep">LegacyOrder</span> POJO — no annotations needed because its field names match the legacy keys.</li>
+        <li><b>(3)</b> <span class="ep">.transform().method(OrderMapper.class, "toCanonical")</span> is the Message Translator proper: the bean renames fields (<span class="ep">id → orderId</span>, <span class="ep">cust → customer</span>, <span class="ep">cur → currency</span>) and converts <span class="ep">cents</span> to whole currency units.</li>
+        <li><b>(4)</b> <span class="ep">marshal().json(JsonLibrary.Jackson)</span> runs the same Data Format the other way, serialising the canonical <span class="ep">Order</span> back to JSON.</li>
+        <li><b>(5)</b> <span class="ep">{{ep.out}}</span> is a property placeholder — production points it at a real <span class="ep">direct:</span>/<span class="ep">jms:</span> endpoint while tests point it at a <span class="ep">mock:</span> endpoint.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/15-message-translator spring-boot:run</code></pre></div>
+      <p>A demo feeder injects a rotating legacy JSON order every 3s, so you'll see a <span class="ep">Translating legacy order: …</span> line followed by the matching <span class="ep">Emitting canonical order: {"orderId":…,"amount":1234.99,…}</span> landing on the log endpoint. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>MessageTranslatorTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void legacyJsonIsTranslatedToCanonicalJson() throws Exception {
+    out.expectedMessageCount(1);
+
+    // LEGACY_JSON = { "id":"A-1001","cust":"Acme Corp","amt":123499,"cur":"USD" }
+    template.sendBody("direct:orders", LEGACY_JSON);
+
+    out.assertIsSatisfied();
+
+    // The emitted body is canonical JSON. Parse it and assert on meaning, not byte order.
+    String canonical = out.getExchanges().get(0).getMessage().getBody(String.class);
+    JsonNode node = JSON.readTree(canonical);
+
+    assertEquals("Acme Corp", node.get("customer").asText());   // renamed: cust -&gt; customer
+    assertEquals("A-1001", node.get("orderId").asText());       // renamed: id   -&gt; orderId
+    // converted: 123499 cents -&gt; 1234.99 currency units
+    assertEquals(0, new BigDecimal("1234.99").compareTo(node.get("amount").decimalValue()));
+
+    // The legacy keys must be gone from the canonical output.
+    assertTrue(node.get("cust") == null, "legacy key 'cust' should not survive translation");
+    assertTrue(node.get("amt") == null, "legacy key 'amt' should not survive translation");
+}</code></pre></div>
+      <p>In the test profile <span class="ep">ep.out</span> resolves to <span class="ep">mock:out</span>, so the test parses the JSON that lands there and asserts on the renamed field (<span class="ep">cust → customer</span>) and the converted amount (<span class="ep">123499</span> cents → <span class="ep">1234.99</span>) — and that the legacy keys are gone. Run just the tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/15-message-translator test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Add a discount to the legacy shape (<span class="ep">disc</span>, in cents). Carry it into the canonical <span class="ep">Order</span> as a <span class="ep">BigDecimal</span> in currency units via <span class="ep">OrderMapper</span>, and write the assertion that proves it survives the translation.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>A Message Translator reshapes a message so systems that speak different formats can integrate.</li>
+        <li>A <span class="ep">Data Format</span> (Jackson) is the reusable codec for <span class="ep">marshal</span>/<span class="ep">unmarshal</span> between JSON and POJOs; a mapping bean does the renaming and unit conversion a codec can't.</li>
+        <li>Property-placeholder endpoints (<span class="ep">{{ep.out}}</span>) let the same route be production-real and test-assertable.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="14-wire-tap.html"><div class="dir">← Previous</div>14 · Wire Tap</a>
+      <a class="next" href="16-content-enricher.html"><div class="dir">Next →</div>16 · Content Enricher</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

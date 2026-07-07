@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Setup — Run the course in 5 minutes | EIP Hands-On</title>
+  <meta name="description" content="Set up the Apache Camel + Spring Boot course: install a JDK, clone the repo, and run your first tested module — with a plain Apache Camel fallback.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/setup.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Setup — Run the course in 5 minutes">
+  <meta property="og:description" content="Install a JDK, clone the repo, run your first tested Camel module.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/setup.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Setup — Run the course in 5 minutes">
+  <meta name="twitter:description" content="Install a JDK, clone the repo, run your first tested Camel module.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+    { "@type": "ListItem", "position": 2, "name": "Setup", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/setup.html" } ] }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="index.html">Home</a><a href="curriculum.html">Curriculum</a><a href="setup.html" aria-current="page">Setup</a><a href="glossary.html">Glossary</a><a href="about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <section class="lesson wrap">
+    <p class="kicker">Setup</p>
+    <h1>Running in five minutes.</h1>
+    <div class="prose">
+      <p class="lead muted">You need everyday Java knowledge and a terminal. Everything else is pinned for you.</p>
+
+      <h2>1. Prerequisites</h2>
+      <ul>
+        <li><b>JDK 17 or 21</b> — check with <span class="ep">java -version</span>. (<a href="https://adoptium.net/">Adoptium Temurin</a> is a good free build.)</li>
+        <li><b>Git</b> and a terminal.</li>
+        <li><b>Docker Desktop</b> — only for lesson 18 (the message-broker lesson). Everything else runs in-memory.</li>
+      </ul>
+      <p>You do <b>not</b> need Maven — the repo ships a wrapper (<span class="ep">./mvnw</span>). You do <b>not</b> need a Red Hat account.</p>
+
+      <h2>2. Clone the code</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>git clone https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course.git
+cd camel-eip-course</code></pre></div>
+
+      <h2>3. Run your first tested module</h2>
+      <p>This compiles Camel + Spring Boot and runs the Content-Based Router's tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/10-content-based-router test</code></pre></div>
+      <p>You should see <span class="ep">BUILD SUCCESS</span> and three passing tests. That's the whole loop: read the route, read the test, run it.</p>
+
+      <h2>4. Red Hat build vs. plain Apache Camel</h2>
+      <p>By default the build uses the <b>Red Hat build of Apache Camel</b> from its public Maven repository (no login). If you're behind a firewall that blocks it, add <span class="ep">-P upstream</span> to use plain Apache Camel from Maven Central — same code, same lessons:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code># Red Hat build (default)
+./mvnw verify
+
+# Plain Apache Camel fallback
+./mvnw -P upstream verify</code></pre></div>
+
+      <h2>5. See a route run live</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/10-content-based-router spring-boot:run</code></pre></div>
+      <p>A demo feeder sends a sample order every few seconds so you can watch it get routed by country in the log.</p>
+
+      <div class="note"><span class="tag">Stuck?</span> The most common issue is a missing component starter (<span class="ep">ResolveEndpointFailedException</span>) or a wrong JDK. See the <a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/blob/main/TROUBLESHOOTING.md">troubleshooting guide</a>.</p>
+
+      <p style="margin-top:26px"><a class="btn btn-primary" href="lessons/01-spring-boot-primer.html">Start lesson 01 →</a></p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="curriculum.html">Curriculum</a><a href="setup.html">Setup</a><a href="glossary.html">Glossary</a><a href="about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="assets/js/nav.js"></script>
+</body>
+</html>

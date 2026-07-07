@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/</loc><lastmod>2026-07-07</lastmod><priority>1.0</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html</loc><lastmod>2026-07-07</lastmod><priority>0.9</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/setup.html</loc><lastmod>2026-07-07</lastmod><priority>0.9</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/glossary.html</loc><lastmod>2026-07-07</lastmod><priority>0.6</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/about.html</loc><lastmod>2026-07-07</lastmod><priority>0.6</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/01-spring-boot-primer.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/02-wire-camel.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/03-your-first-route.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/04-message-channel-and-endpoint.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/05-message-and-exchange.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/06-testing-camel-routes.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/07-error-handling-basics.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/08-pipes-and-filters.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/09-message-filter.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/10-content-based-router.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/11-splitter.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/12-aggregator.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/13-recipient-list.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/14-wire-tap.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/15-message-translator.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/16-content-enricher.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/18-point-to-point-and-pub-sub.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/19-dead-letter-channel.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/20-idempotent-consumer.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/21-request-reply-and-event-message.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/99-capstone-order-pipeline.html</loc><lastmod>2026-07-07</lastmod><priority>0.8</priority></url>
+</urlset>

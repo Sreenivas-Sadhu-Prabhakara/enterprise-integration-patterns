@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recipient List — dynamic fan-out | EIP Hands-On</title>
+  <meta name="description" content="Learn the Recipient List pattern in Apache Camel: compute a per-message set of destinations at runtime and fan one message out to each with recipientList().">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/13-recipient-list.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Recipient List — dynamic fan-out">
+  <meta property="og:description" content="Fan one message out to a set of recipients computed at runtime, with a runnable Camel route and test.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/13-recipient-list.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Recipient List — dynamic fan-out">
+  <meta name="twitter:description" content="Fan one message out to a runtime-computed set of recipients with recipientList().">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Recipient List", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/13-recipient-list.html" } ] },
+      { "@type": "LearningResource", "name": "Recipient List",
+        "description": "Fan one message out to a set of recipients that is computed per message at runtime, using Apache Camel's recipientList() DSL.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Recipient List (Enterprise Integration Pattern)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/13-recipient-list">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Routing › <span>13 · Recipient List</span></p>
+    <h1>Recipient List: Fan Out to a Dynamic Set</h1>
+    <p class="objective"><b>Route one message to a set of recipients that is computed at runtime.</b> Reach for it when "who needs a copy" is decided per message — not fixed in the route.</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>A <span class="ep">multicast()</span> fans a message out to a <em>fixed</em> list baked into the route. A Recipient List does the same fan-out, but the destination list is <em>data-driven</em>: each message carries (or computes) its own set of recipients. In Camel that's <span class="ep">recipientList(expression)</span> — it evaluates an expression to a list of endpoint URIs and delivers a copy of the message to every one. It is the dynamic sibling of <span class="ep">multicast()</span>.</p>
+
+      <h2>The scenario</h2>
+      <p>Every ShopFlow order must reach some systems always and others only sometimes: <b>warehouse</b> and <b>invoicing</b> get every order (it ships and it bills), but <b>analytics</b> is notified <b>only for high-value orders</b> — those whose <span class="ep">totalAmount</span> is at or above the configured threshold (default <span class="ep">1000</span>). A <span class="ep">RecipientResolver</span> bean builds the list per message and returns it as a comma-separated string of endpoint URIs.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="direct:orders passes through RecipientResolver into a recipientList that fans out to warehouse and invoicing always, plus analytics for high-value orders.">
+          <div class="step"><span class="lbl">direct:orders</span><span class="sub">incoming order</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">RecipientResolver</span><span class="sub">compute recipients header</span></div>
+          <div class="arrow">→</div>
+          <div class="step decision"><span class="lbl">recipientList()</span><span class="sub">split header on ','</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">→ ep.warehouse</span><span class="sub">always</span></div>
+          <div class="step"><span class="lbl">→ ep.invoicing</span><span class="sub">always</span></div>
+          <div class="step"><span class="lbl">→ ep.analytics</span><span class="sub">high-value only</span></div>
+        </div>
+        <figcaption>direct:orders → resolver → recipientList(header) → warehouse + invoicing (+ analytics when high-value)</figcaption>
+      </figure>
+
+      <h2>The route</h2>
+      <div class="code"><div class="code-head"><span>RecipientListRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:orders")                                                 // (1) the channel orders arrive on
+    .routeId("recipient-list")                                        //     always name a route (tracing, metrics, tests)
+    .log("Fanning out order ${body.orderId} (amount ${body.totalAmount})")
+    .setHeader("recipients", method(RecipientResolver.class, "recipientsFor")) // (2) compute the recipient list per message
+    .recipientList(header("recipients"), ",");                        // (3) split on ',' and deliver a copy to each recipient</code></pre></div>
+      <ol>
+        <li><b>(1)</b> the route consumes orders from an in-memory <span class="ep">direct:</span> channel; <span class="ep">routeId</span> names it for tracing, metrics, and tests.</li>
+        <li><b>(2)</b> <span class="ep">setHeader</span> calls the <span class="ep">RecipientResolver</span> bean via <span class="ep">method(...)</span>. It always appends <span class="ep">warehouse</span> + <span class="ep">invoicing</span>, and adds <span class="ep">analytics</span> only when <span class="ep">totalAmount &gt;= threshold</span> — this per-message computation is what makes the list <em>dynamic</em>.</li>
+        <li><b>(3)</b> <span class="ep">recipientList(header("recipients"), ",")</span> splits that header on the comma and delivers a copy of the message to each URI. The base endpoints are <span class="ep">{{ep.*}}</span> placeholders, so production points them at real <span class="ep">jms:</span>/<span class="ep">http:</span> systems while tests point them at mocks. Fan-out is sequential by default; add <span class="ep">.parallelProcessing()</span> to dispatch concurrently.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/13-recipient-list spring-boot:run</code></pre></div>
+      <p>A demo feeder injects a sample order every 3s, alternating between low and high amounts — watch low-value orders land on <span class="ep">log:warehouse</span> and <span class="ep">log:invoicing</span> only, while high-value ones <em>also</em> hit <span class="ep">log:analytics</span>. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>RecipientListTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void highValueOrderAlsoHitsAnalytics() throws Exception {
+    warehouse.expectedMessageCount(1);
+    invoicing.expectedMessageCount(1);
+    analytics.expectedMessageCount(1);
+
+    // 5000 is at/above the high-value threshold (1000): analytics is added to the recipient list.
+    template.sendBody("direct:orders", new Order("A-2002", "IN", 5000));
+
+    MockEndpoint.assertIsSatisfied(context);
+}</code></pre></div>
+      <p>In the test profile the recipient endpoints resolve to <span class="ep">mock:warehouse</span>, <span class="ep">mock:invoicing</span>, <span class="ep">mock:analytics</span>, so each test asserts exactly which systems an order fanned out to. Its twin, <span class="ep">lowValueOrderSkipsAnalytics</span>, sends an amount of <span class="ep">250</span> and proves analytics receives <b>zero</b> messages. Run just the tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/13-recipient-list test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Add a fourth recipient — a <span class="ep">mock:fraud-check</span> endpoint that only receives orders from a flagged country. Extend <span class="ep">RecipientResolver</span> to append it conditionally, then write the assertion that proves it fires for that country and stays empty otherwise.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>A Recipient List fans one message out to a set of destinations computed at runtime, so the set can differ per message.</li>
+        <li><span class="ep">recipientList(header("recipients"), ",")</span> splits a data-driven expression and delivers a copy to each — the dynamic sibling of a static <span class="ep">multicast()</span>.</li>
+        <li>Property-placeholder endpoints (<span class="ep">{{ep.*}}</span>) let the same route hit real systems in production and <span class="ep">mock:</span> endpoints under test.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="12-aggregator.html"><div class="dir">← Previous</div>12 · Aggregator</a>
+      <a class="next" href="14-wire-tap.html"><div class="dir">Next →</div>14 · Wire Tap</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

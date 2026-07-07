@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your First Route — from(), to(), routeId() | EIP Hands-On</title>
+  <meta name="description" content="Learn the anatomy of an Apache Camel route — a from() consumer, a to() producer, and why every route needs a routeId() — with a runnable order-intake route and test.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/03-your-first-route.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Your First Route — from(), to(), routeId()">
+  <meta property="og:description" content="The anatomy of every Camel route: a from() consumer, a to() producer, and why every route needs a routeId() — runnable, with a test.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/03-your-first-route.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Your First Route — from(), to(), routeId()">
+  <meta name="twitter:description" content="Read any Camel route left-to-right: from() consumer → steps → to() producer, always with a routeId().">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Your First Route", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/03-your-first-route.html" } ] },
+      { "@type": "LearningResource", "name": "Your First Route: from(), to(), routeId()",
+        "description": "Learn the anatomy of an Apache Camel route — a from() consumer, a to() producer, and why every route needs a routeId().",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Camel route anatomy: from(), to(), routeId()",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/03-your-first-route">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Foundations › <span>03 · Your First Route</span></p>
+    <h1>Your First Route: from(), to(), routeId()</h1>
+    <p class="objective"><b>Read any Camel route left-to-right, top-to-bottom.</b> It begins at one <span class="ep">from(...)</span> consumer, flows through zero or more steps, and ends at a <span class="ep">to(...)</span> producer. That single shape underlies every other pattern in this course.</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>A Camel route is a small pipeline with a fixed grammar: <span class="ep">from( consumer ) … steps … to( producer )</span>. The <span class="ep">from(...)</span> names the channel messages <em>enter</em> on; each step in between transforms, logs, or decides; the <span class="ep">to(...)</span> names where the message <em>goes next</em>. Master this one shape and every later pattern — routers, splitters, filters — is just more steps in the middle. And there is one habit that pays off forever: <b>always give a route a <span class="ep">routeId(...)</span></b>. Without it Camel auto-generates ids like <span class="ep">route1</span>, <span class="ep">route2</span> from start-up order — numbers that drift the moment you add or reorder a route, quietly breaking your traces, metrics, and tests.</p>
+
+      <h2>The scenario</h2>
+      <p>ShopFlow receives orders on the <span class="ep">direct:orders</span> channel. Our first route, <span class="ep">order-intake</span>, does the smallest useful thing: it <b>logs</b> the order and <b>hands it to the next stop</b>. The producer target is a property placeholder <span class="ep">{{ep.out}}</span> — in production a real <span class="ep">direct:</span>/<span class="ep">jms:</span> endpoint; in tests it resolves to a <span class="ep">mock:</span> so we can prove exactly what the route emits.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="direct:orders enters the order-intake route, which logs the order, then sends it to ep.out.">
+          <div class="step"><span class="lbl">direct:orders</span><span class="sub">incoming order</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">order-intake</span><span class="sub">log 'Received order …'</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">{{ep.out}}</span><span class="sub">next stop</span></div>
+        </div>
+        <figcaption>direct:orders → order-intake (log) → ep.out</figcaption>
+      </figure>
+
+      <h2>The route</h2>
+      <div class="code"><div class="code-head"><span>OrderIntakeRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:orders")                                   // (1) CONSUMER: the channel orders arrive on
+    .routeId("order-intake")                            // (2) ALWAYS name the route
+    .log("Received order ${body.orderId} from ${body.customer}") // (3) a step: one line in the flow
+    .to("{{ep.out}}");                                  // (4) PRODUCER: where the message goes next</code></pre></div>
+      <ol>
+        <li><b>(1)</b> <span class="ep">from("direct:orders")</span> is the consumer — the single entry point. Every route has exactly one.</li>
+        <li><b>(2)</b> <span class="ep">routeId("order-intake")</span> pins a stable name so tracing, Micrometer metrics, and management/tests all address the route by a name that never drifts. Rule of thumb: every <span class="ep">from(...)</span> gets a <span class="ep">.routeId(...)</span> on the very next line.</li>
+        <li><b>(3)</b> <span class="ep">.log(...)</span> is a step — the simplest kind. The <span class="ep">${body.orderId}</span> / <span class="ep">${body.customer}</span> tokens read the order via the Simple language.</li>
+        <li><b>(4)</b> <span class="ep">to("{{ep.out}}")</span> is the producer. The <span class="ep">{{ep.out}}</span> placeholder lets the same route point at a real endpoint in production and a mock in tests.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/03-your-first-route spring-boot:run</code></pre></div>
+      <p>A demo feeder injects a sample order every 3 seconds, so you'll see lines like <span class="ep">Received order A-1001 from Asha</span> as each order flows through <span class="ep">order-intake</span>. Notice the feeder is <em>also</em> a route with its own <span class="ep">.routeId("demo-feeder")</span> — two routes, two ids. Behind a firewall? Add <span class="ep">-P upstream</span> for plain Apache Camel.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>OrderIntakeRouteTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void oneOrderInOneMessageOut() throws Exception {
+    out.expectedMessageCount(1);
+
+    template.sendBody("direct:orders", new Order("A-1001", "Asha"));
+
+    MockEndpoint.assertIsSatisfied(context);
+}</code></pre></div>
+      <p>In the test profile <span class="ep">{{ep.out}}</span> resolves to <span class="ep">mock:out</span>, so we send one <span class="ep">Order</span> into <span class="ep">direct:orders</span> and assert exactly one message reaches the producer — no broker required. A second test proves the body passes through unchanged. Run just the tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/03-your-first-route test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Add a second step between the <span class="ep">log</span> and the <span class="ep">to</span> — for example <span class="ep">.setHeader("intakeAt", simple("${date:now}"))</span> — then extend the test to assert the header arrives on <span class="ep">mock:out</span>.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>Every Camel route has the same shape: one <span class="ep">from(...)</span> consumer, zero or more steps, one <span class="ep">to(...)</span> producer.</li>
+        <li><span class="ep">routeId(...)</span> is not optional — a stable name keeps traces, metrics, and tests pointing at the right route.</li>
+        <li>A property-placeholder endpoint like <span class="ep">{{ep.out}}</span> lets the same route be production-real and test-assertable against a <span class="ep">mock:</span>.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="02-wire-camel.html"><div class="dir">← Previous</div>02 · Wire Camel</a>
+      <a class="next" href="04-message-channel-and-endpoint.html"><div class="dir">Next →</div>04 · Channel &amp; Endpoint</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

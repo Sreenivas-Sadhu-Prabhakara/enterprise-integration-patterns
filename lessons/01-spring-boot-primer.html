@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spring Boot in 30 Minutes (for Camel) | EIP Hands-On</title>
+  <meta name="description" content="Learn the Spring Boot foundations every Apache Camel module builds on: @SpringBootApplication, beans, constructor dependency injection, and @Value config.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/01-spring-boot-primer.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Spring Boot in 30 Minutes (for Camel)">
+  <meta property="og:description" content="The Spring Boot foundations every Apache Camel module builds on — beans, DI, and @Value config, with a runnable app and test.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/01-spring-boot-primer.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Spring Boot in 30 Minutes (for Camel)">
+  <meta name="twitter:description" content="Beans, constructor DI, and @Value config — the Spring Boot on-ramp to Apache Camel.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Spring Boot in 30 Minutes (for Camel)", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/01-spring-boot-primer.html" } ] },
+      { "@type": "LearningResource", "name": "Spring Boot in 30 Minutes (for Camel)",
+        "description": "Get comfortable with the Spring Boot foundations — @SpringBootApplication, beans, constructor dependency injection, and @Value configuration — that every Apache Camel module builds on.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Spring Boot foundations for Apache Camel (dependency injection and externalised configuration)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/01-spring-boot-primer">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Foundations › <span>01 · Spring Boot Primer</span></p>
+    <h1>Spring Boot in 30 Minutes (for Camel)</h1>
+    <p class="objective"><b>Get comfortable with the Spring Boot foundations every later module relies on — before any Camel appears.</b> Once these ideas click, the Camel modules are just "the same Spring Boot app, plus routes."</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>A Spring Boot app is a container of <b>beans</b> — plain classes Spring creates and wires for you. Put <span class="ep">@SpringBootApplication</span> on the entry point and it turns on <b>component scanning</b>, so any class annotated <span class="ep">@Service</span> or <span class="ep">@Component</span> becomes a managed bean automatically — no XML, no manual <span class="ep">new</span>. When one bean needs another, Spring supplies it through <b>dependency injection</b> instead of you constructing it. And settings live outside the code: <span class="ep">@Value("${...}")</span> binds a property from <span class="ep">application.yaml</span> straight into a field. That is the whole toolkit this course stands on.</p>
+
+      <h2>The scenario</h2>
+      <p>A one-screen app that greets someone at startup. <span class="ep">GreetingService</span> (a <span class="ep">@Service</span>) builds <span class="ep">"&lt;prefix&gt;, &lt;name&gt;!"</span>, where the <b>prefix</b> comes from config. <span class="ep">StartupRunner</span> (a <span class="ep">@Component</span> that implements <span class="ep">CommandLineRunner</span>) runs once when the context is ready, receives the service by <b>constructor injection</b>, and logs <span class="ep">greet(name)</span> for a <b>name</b> also read from config. Change <span class="ep">app.greeting.prefix</span> or <span class="ep">app.greeting.name</span> in <span class="ep">application.yaml</span> and the output changes with no recompile. No Camel, no broker, no network — everything runs in-memory.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="application.yaml feeds the @SpringBootApplication component scan, which creates GreetingService then StartupRunner, which logs the greeting.">
+          <div class="step"><span class="lbl">application.yaml</span><span class="sub">app.greeting.*</span></div>
+          <div class="arrow">→</div>
+          <div class="step decision"><span class="lbl">@SpringBootApplication</span><span class="sub">component scan</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">GreetingService</span><span class="sub">@Service · @Value prefix</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">StartupRunner</span><span class="sub">@Component · constructor DI</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">logs</span><span class="sub">greet(name)</span></div>
+        </div>
+        <figcaption>SpringApplication.run → component scan → GreetingService → StartupRunner → logs the greeting</figcaption>
+      </figure>
+
+      <h2>The code</h2>
+      <div class="code"><div class="code-head"><span>Application · GreetingService · StartupRunner</span><button class="copy-btn" type="button">copy</button></div><pre><code>@SpringBootApplication                                    // (1) config + auto-config + component scan of this package
+public class Application {
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);    // (2) boot the context, then run CommandLineRunners
+    }
+}
+
+@Service                                                  // (3) a scanned, singleton business bean
+public class GreetingService {
+    @Value("${app.greeting.prefix}")                      // (4) bound from application.yaml — no hardcoding
+    private String prefix;
+
+    public String greet(String name) {
+        return prefix + ", " + name + "!";
+    }
+}
+
+@Component                                                // (5) another scanned bean; CommandLineRunner runs at startup
+public class StartupRunner implements CommandLineRunner {
+    private final GreetingService greetingService;
+    @Value("${app.greeting.name}")
+    private String name;
+
+    public StartupRunner(GreetingService greetingService) {   // (6) constructor dependency injection
+        this.greetingService = greetingService;
+    }
+
+    @Override
+    public void run(String... args) {
+        log.info(greetingService.greet(name));
+    }
+}</code></pre></div>
+      <ol>
+        <li><b>(1)</b> <span class="ep">@SpringBootApplication</span> bundles three things — this class can define beans, sensible defaults are auto-configured from the classpath, and <b>this package and below</b> is scanned for your beans.</li>
+        <li><b>(2)</b> <span class="ep">SpringApplication.run</span> boots the <span class="ep">ApplicationContext</span> (the bean container): it scans, injects dependencies, binds config, then invokes every <span class="ep">CommandLineRunner</span>.</li>
+        <li><b>(3)</b> <span class="ep">@Service</span> marks <span class="ep">GreetingService</span> as a managed bean, so the container creates exactly one instance you can inject anywhere.</li>
+        <li><b>(4)</b> <span class="ep">@Value</span> binds <span class="ep">app.greeting.prefix</span> from <span class="ep">application.yaml</span> (or an env var / CLI override) into the field — change the config, change the behaviour, no recompile.</li>
+        <li><b>(5)</b> <span class="ep">@Component</span> + <span class="ep">CommandLineRunner</span> makes <span class="ep">StartupRunner</span> run once at the end of startup — the natural place to see your beans working.</li>
+        <li><b>(6)</b> <b>constructor injection</b> — Spring sees the constructor needs a <span class="ep">GreetingService</span>, finds the single bean of that type, and passes it in. The field is <span class="ep">final</span> and never <span class="ep">new</span>-ed by us.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/01-spring-boot-primer spring-boot:run</code></pre></div>
+      <p>On startup you'll see a single line — <span class="ep">Hello, World!</span> — logged by <span class="ep">StartupRunner</span>. Override the config without editing files to watch it change:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/01-spring-boot-primer spring-boot:run \
+  -Dspring-boot.run.arguments="--app.greeting.prefix=Namaste --app.greeting.name=Sri"
+# -&gt; Namaste, Sri!</code></pre></div>
+      <p>Behind a firewall or without Red Hat access? Add <span class="ep">-P upstream</span> for the plain Apache Camel profile — same result, since there are no Camel deps in this module yet.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>GreetingServiceTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void greetIncludesConfiguredPrefixAndName() {
+    String result = greetingService.greet("Sri");
+
+    assertThat(result)
+        .contains(configuredPrefix)   // the @Value-injected prefix from application.yaml
+        .contains("Sri");             // the name we passed in
+}</code></pre></div>
+      <p><span class="ep">@SpringBootTest</span> boots the real <span class="ep">ApplicationContext</span> — the same container <span class="ep">main()</span> would build — proving component scan, bean creation, constructor injection and <span class="ep">@Value</span> binding all wire up. The test profile deliberately sets a <b>different</b> prefix (<span class="ep">Namaste</span>), and the assertion reads that injected property rather than hardcoding it, so it follows the config. Run just the tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/01-spring-boot-primer test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Add an <span class="ep">app.greeting.punctuation</span> property, bind it in <span class="ep">GreetingService</span> with a second <span class="ep">@Value</span>, and write the assertion that proves <span class="ep">greet("Sri")</span> ends with it.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li><span class="ep">@SpringBootApplication</span> + component scanning turns plain <span class="ep">@Service</span> / <span class="ep">@Component</span> classes into managed beans — no XML, no manual <span class="ep">new</span>.</li>
+        <li><b>Constructor dependency injection</b> hands a bean its collaborators; the field stays <span class="ep">final</span>, explicit, and easy to test.</li>
+        <li><span class="ep">@Value</span> binds <span class="ep">application.yaml</span> properties at runtime — the same externalised-configuration idea Camel later uses for its endpoint placeholders.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="../setup.html"><div class="dir">← Previous</div>Setup</a>
+      <a class="next" href="02-wire-camel.html"><div class="dir">Next →</div>02 · Wire Camel</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

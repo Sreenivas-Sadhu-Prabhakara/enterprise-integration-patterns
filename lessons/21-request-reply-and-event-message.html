@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Request-Reply vs Event Message | EIP Hands-On</title>
+  <meta name="description" content="Compare Request-Reply (InOut) and Event Message (InOnly) in Apache Camel: requestBody blocks for a reply while sendBody fires and forgets, with a runnable test.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/21-request-reply-and-event-message.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Request-Reply vs Event Message: InOut vs InOnly">
+  <meta property="og:description" content="Send a message and block for a correlated reply, or fire an event and move on — InOut vs InOnly in a runnable Camel route with a test.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/21-request-reply-and-event-message.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Request-Reply vs Event Message: InOut vs InOnly">
+  <meta name="twitter:description" content="requestBody blocks for a reply; sendBody fires and forgets — InOut vs InOnly in Apache Camel.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Request-Reply vs Event Message", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/21-request-reply-and-event-message.html" } ] },
+      { "@type": "LearningResource", "name": "Request-Reply vs Event Message",
+        "description": "Two message exchange patterns side by side in Apache Camel: Request-Reply (InOut) blocks for a correlated reply while Event Message (InOnly) fires and forgets.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Request-Reply and Event Message (Enterprise Integration Patterns)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/21-request-reply-and-event-message">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Reliability › <span>21 · Request-Reply vs Event Message</span></p>
+    <h1>Request-Reply vs Event Message: InOut vs InOnly</h1>
+    <p class="objective"><b>Two message exchange patterns, side by side.</b> Request-Reply (<span class="ep">InOut</span>) sends a message and blocks until a correlated reply comes back; Event Message (<span class="ep">InOnly</span>) announces that something happened and moves on. Reach for InOut when you need the answer <em>now</em> to keep going, InOnly when you just want to notify.</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>A Request-Reply is a phone call: you ask, then wait on the line for the answer before you do anything else. An Event Message is a postcard: you drop it in the box and walk away — you neither expect nor wait for a reply. In Camel the caller picks the mode at the <span class="ep">ProducerTemplate</span>: <span class="ep">requestBody(...)</span> is the InOut verb (blocks for the reply), while <span class="ep">sendBody(...)</span> is the one-way InOnly verb. Choosing the wrong one is a classic integration bug: waiting for a reply that never comes, or fire-and-forgetting an operation whose result you actually needed.</p>
+
+      <h2>The scenario</h2>
+      <p>ShopFlow does two things when an order lands. It <b>authorizes the payment</b> with a Request-Reply call on <span class="ep">direct:authorize</span> (route <span class="ep">payment</span>) and blocks for the reply body <span class="ep">AUTH-&lt;orderId&gt;</span>. Separately it <b>announces "order received"</b> as a one-way Event Message on <span class="ep">direct:orders</span> (route <span class="ep">emit-event</span>) that publishes to <span class="ep">{{ep.event}}</span> — a topic in production, a <span class="ep">mock:</span> endpoint in tests — and gets nothing back.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="Request-Reply: caller sends requestBody to direct:authorize (route payment, InOut) and blocks for the reply AUTH-orderId.">
+          <div class="step"><span class="lbl">caller</span><span class="sub">requestBody(order)</span></div>
+          <div class="arrow">→</div>
+          <div class="step decision"><span class="lbl">direct:authorize</span><span class="sub">routeId payment · InOut</span></div>
+          <div class="arrow">↩</div>
+          <div class="step"><span class="lbl">reply</span><span class="sub">AUTH-orderId</span></div>
+        </div>
+        <div class="flow" role="img" aria-label="Event Message: caller sends sendBody to direct:orders (route emit-event, InOnly) which publishes one-way to ep.event.">
+          <div class="step"><span class="lbl">caller</span><span class="sub">sendBody(order)</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">direct:orders</span><span class="sub">routeId emit-event · InOnly</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">ep.event</span><span class="sub">fire-and-forget</span></div>
+        </div>
+        <figcaption>Request-Reply: requestBody → direct:authorize —reply→ AUTH-orderId ‖ Event: sendBody → direct:orders —InOnly→ ep.event</figcaption>
+      </figure>
+
+      <h2>The route</h2>
+      <div class="code"><div class="code-head"><span>RequestReplyRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:authorize")                                   // (1) the request channel
+    .routeId("payment")                                    //     always name a route (tracing, metrics, tests)
+    .log("Authorizing order ${body.orderId} for amount ${body.amount}")
+    .setBody(simple("AUTH-${body.orderId}"));              // (2) the reply — requestBody(...) returns THIS</code></pre></div>
+      <div class="code"><div class="code-head"><span>EventMessageRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:orders")                                      // (3) the channel order events arrive on
+    .routeId("emit-event")                                 //     always name a route
+    .setExchangePattern(ExchangePattern.InOnly)            // (4) fire-and-forget: no reply channel
+    .log("Emitting order-received event for ${body.orderId} (no reply awaited)")
+    .to("{{ep.event}}");                                   // (5) publish the event (mock: in tests, jms:/log: in prod)</code></pre></div>
+      <ol>
+        <li><b>(1)</b> the <span class="ep">payment</span> route is a <em>responder</em>: it consumes an order from <span class="ep">direct:authorize</span>.</li>
+        <li><b>(2)</b> it replaces the body with an auth code. A caller obtains it synchronously with <span class="ep">requestBody("direct:authorize", order)</span> — the InOut verb blocks until this reply comes back, correlated for you in-process.</li>
+        <li><b>(3)</b> the <span class="ep">emit-event</span> route consumes order events from <span class="ep">direct:orders</span>.</li>
+        <li><b>(4)</b> <span class="ep">setExchangePattern(InOnly)</span> makes the one-way intent explicit, so even an InOut caller publishes this event fire-and-forget with no reply channel.</li>
+        <li><b>(5)</b> the destination is a <span class="ep">{{ep.event}}</span> placeholder — a real topic in production, a <span class="ep">mock:</span> endpoint under test. With no reply channel, the emitter is decoupled from any 0..N consumers.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/21-request-reply-and-event-message spring-boot:run</code></pre></div>
+      <p>A demo feeder fires every 3s: it does a blocking Request-Reply call to get <span class="ep">AUTH-A-100x</span>, then emits a one-way Event Message — so you'll see both a correlated <span class="ep">AUTH-…</span> reply and an event landing in the log. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>RequestReplyAndEventMessageTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void requestReplyReturnsCorrelatedAuthCode() {
+    // InOut: requestBody blocks and returns the reply the payment route set on the body.
+    String auth = template.requestBody("direct:authorize", new Order("A-1001", 999), String.class);
+
+    assertEquals("AUTH-A-1001", auth);
+}
+
+@Test
+void eventMessageIsFireAndForgetInOnly() throws Exception {
+    event.expectedMessageCount(1);
+
+    // InOnly: one event goes out; there is no reply to capture.
+    template.sendBody("direct:orders", new Order("A-2002", 500));
+
+    event.assertIsSatisfied();
+    // Exactly one message, and it arrived one-way — the recorded pattern is InOnly (no reply channel).
+    assertEquals(ExchangePattern.InOnly, event.getReceivedExchanges().get(0).getPattern());
+}</code></pre></div>
+      <p>The first test proves Request-Reply: <span class="ep">requestBody(...)</span> blocks and hands back the correlated <span class="ep">AUTH-A-1001</span>. The second proves Event Message: <span class="ep">sendBody(...)</span> lands exactly one message on <span class="ep">mock:event</span> whose recorded pattern is <span class="ep">InOnly</span> — fire-and-forget, no reply channel. Run just the tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/21-request-reply-and-event-message test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Change the <span class="ep">payment</span> route to <em>decline</em> orders whose amount exceeds 10,000 with a reply of <span class="ep">DECLINED-${body.orderId}</span>, and write the InOut assertion that proves it. Then confirm the InOnly event on <span class="ep">direct:orders</span> still fires exactly once, regardless of the auth outcome.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>Request-Reply is <span class="ep">InOut</span>: <span class="ep">requestBody(...)</span> blocks until a correlated reply comes back — use it when you need the answer to keep going.</li>
+        <li>Event Message is <span class="ep">InOnly</span>: <span class="ep">sendBody(...)</span> fires and forgets, and <span class="ep">setExchangePattern(InOnly)</span> makes that one-way intent explicit, decoupling the emitter from 0..N consumers.</li>
+        <li>Picking the wrong pattern is a classic bug — waiting for a reply that never comes, or fire-and-forgetting an operation whose result you needed.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="20-idempotent-consumer.html"><div class="dir">← Previous</div>20 · Idempotent Consumer</a>
+      <a class="next" href="99-capstone-order-pipeline.html"><div class="dir">Next →</div>99 · Capstone</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

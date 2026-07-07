@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Error Handling Basics in Camel | EIP Hands-On</title>
+  <meta name="description" content="Learn error handling in Apache Camel: catch a thrown step with onException and handled(true), park failures on a dead-letter channel, and doTry/doCatch inline.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/07-error-handling-basics.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Error Handling Basics — when a route throws">
+  <meta property="og:description" content="Catch, retry, or divert a failing step with a runnable Apache Camel route and tests.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/07-error-handling-basics.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Error Handling Basics — when a route throws">
+  <meta name="twitter:description" content="Handle a thrown step with onException, a dead-letter channel, or doTry/doCatch.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Error Handling Basics", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/07-error-handling-basics.html" } ] },
+      { "@type": "LearningResource", "name": "When a Route Throws: Error Handling Basics",
+        "description": "Control what happens when a step in an Apache Camel route throws, using onException + handled(true), a dead-letter channel with redelivery, and doTry/doCatch.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Error Handling in Apache Camel (Enterprise Integration Patterns)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/07-error-handling-basics">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Foundations › <span>07 · Error Handling Basics</span></p>
+    <h1>When a Route Throws: Error Handling Basics</h1>
+    <p class="objective"><b>Control what happens when a step in a route throws.</b> Learn the three everyday tools — the default error handler, <span class="ep">onException</span> + <span class="ep">handled(true)</span>, and <span class="ep">doTry</span>/<span class="ep">doCatch</span> — plus a first look at redelivery and a dead-letter destination.</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>By default Camel wraps every route in a <b>default error handler</b>: if a step throws and nothing catches it, the exception is logged and propagated back to the caller, the exchange is marked failed, and the rest of the route is skipped. Nothing is retried, nothing is diverted — it just blows up. Three deliberate strategies replace that: <span class="ep">onException(...).handled(true)</span> catches, logs and diverts (and hides the failure from the caller); <span class="ep">errorHandler(deadLetterChannel(...))</span> retries a few times and then parks the message for ops to replay; and <span class="ep">doTry()/doCatch()</span> handles a failure inline, exactly like Java's <span class="ep">try/catch</span>.</p>
+
+      <h2>The scenario</h2>
+      <p>ShopFlow charges a card in <span class="ep">PaymentBean</span>. Orders flagged <span class="ep">failPayment=true</span> make the bean throw a <span class="ep">RuntimeException</span> — a declined card, a downstream 500, a bug. We handle that failure three ways, one route each: <b>error-handling</b> (<span class="ep">onException</span>) diverts to <span class="ep">ep.error</span>, <b>dlc-demo</b> (<span class="ep">deadLetterChannel</span>) retries then parks on <span class="ep">ep.dead</span>, and <b>try-catch-demo</b> (<span class="ep">doTry/doCatch</span>) catches inline to <span class="ep">ep.caught</span>. This page walks the first, most common one.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="direct:orders flows into PaymentBean.process, then the error handler routes a good order to ep.ok, or on a thrown exception to ep.error, ep.dead, or ep.caught.">
+          <div class="step"><span class="lbl">direct:orders</span><span class="sub">an order arrives</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">PaymentBean.process</span><span class="sub">charge the card · may throw</span></div>
+          <div class="arrow">→</div>
+          <div class="step decision"><span class="lbl">a step throws?</span><span class="sub">the error handler decides</span></div>
+          <div class="step"><span class="lbl">→ ep.ok</span><span class="sub">no throw · happy path</span></div>
+          <div class="step"><span class="lbl">→ ep.error</span><span class="sub">onException · handled(true)</span></div>
+          <div class="step"><span class="lbl">→ ep.dead</span><span class="sub">deadLetterChannel · retry ×2</span></div>
+          <div class="step"><span class="lbl">→ ep.caught</span><span class="sub">doTry / doCatch</span></div>
+        </div>
+        <figcaption>orders → PaymentBean.process → ep.ok · or on throw: onException→error ‖ DLC retry→dead ‖ doTry/doCatch→caught</figcaption>
+      </figure>
+
+      <h2>The route</h2>
+      <div class="code"><div class="code-head"><span>ErrorHandlingRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>onException(RuntimeException.class)                       // (1) catch this exception thrown anywhere below
+    .handled(true)                                       // (2) "I've dealt with it" — do NOT rethrow to the caller
+    .log("Payment FAILED for ${body.orderId}: ${exception.message} -&gt; error channel")
+    .to("{{ep.error}}");                                 // (3) divert the bad message to the error destination
+
+from("direct:orders")                                    // (4) orders arrive on this channel
+    .routeId("error-handling")                           //     always name a route (tracing, metrics, tests)
+    .log("Charging order ${body.orderId}")
+    .bean("paymentBean", "process")                      // (5) may throw RuntimeException -&gt; caught by (1)
+    .log("Payment OK for ${body.orderId}")
+    .to("{{ep.ok}}");                                    // (6) happy path: only reached if (5) did NOT throw</code></pre></div>
+      <ol>
+        <li><b>(1)</b> <span class="ep">onException</span> registers a route-wide catch that applies to every route in <em>this</em> RouteBuilder; it fires for the listed exception (and its subclasses) thrown anywhere downstream.</li>
+        <li><b>(2)</b> <span class="ep">handled(true)</span> tells Camel the failure is dealt with, so the exception is <b>not</b> rethrown — the caller sees success, not a stack trace.</li>
+        <li><b>(3)</b> the failed message is diverted to <span class="ep">{{ep.error}}</span> instead of aborting the exchange.</li>
+        <li><b>(4)(5)</b> the happy path consumes an order, logs, then calls <span class="ep">PaymentBean.process</span>, which throws for any flagged order.</li>
+        <li><b>(6)</b> <span class="ep">{{ep.ok}}</span> is reached only when the bean did <em>not</em> throw; on a throw, control jumps to the <span class="ep">onException</span> block. Both targets are <span class="ep">{{ep.*}}</span> placeholders — <span class="ep">log:</span> in the app, <span class="ep">mock:</span> in tests.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/07-error-handling-basics spring-boot:run</code></pre></div>
+      <p>A demo feeder injects an order every 3s, alternating good and failing. Watch <span class="ep">Charging order A-1001</span> land on <span class="ep">log:ok</span>, or <span class="ep">Payment FAILED … -&gt; error channel</span> land on <span class="ep">log:error</span> — proof that a thrown step no longer aborts the app. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>ErrorHandlingTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void failingOrderIsHandledToError() throws Exception {
+    ok.expectedMessageCount(0);
+    error.expectedMessageCount(1);
+
+    // handled(true) means this does NOT throw back to us even though the bean threw.
+    template.sendBody("direct:orders", new Order("A-1002", 500, true));
+
+    MockEndpoint.assertIsSatisfied(context);
+}</code></pre></div>
+      <p>In the test profile every endpoint resolves to a <span class="ep">mock:</span> (see <span class="ep">src/test/resources/application.yaml</span>), so each test asserts exactly where a message ended up — no broker. Because the bean threw but <span class="ep">handled(true)</span> is set, <span class="ep">sendBody</span> returns normally: the failure lands on <span class="ep">mock:error</span> and <span class="ep">mock:ok</span> stays empty. Run just the tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/07-error-handling-basics test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Flip <span class="ep">handled(true)</span> to <span class="ep">handled(false)</span> in <span class="ep">ErrorHandlingRoute</span> and rerun the test — watch the exception get rethrown to the caller. Then drop <span class="ep">maximumRedeliveries</span> from 2 to 0 in <span class="ep">DeadLetterChannelRoute</span> and assert the failing charge still lands on <span class="ep">mock:dead</span>, now with no retries.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>By default a thrown step aborts the route and propagates the exception back to the caller; error handling replaces that with something deliberate.</li>
+        <li><span class="ep">onException + handled(true)</span> catches, logs and diverts — and hides the failure from the caller; a dead-letter channel first retries then parks; <span class="ep">doTry/doCatch</span> handles inline like Java's <span class="ep">try/catch</span>.</li>
+        <li>Property-placeholder endpoints (<span class="ep">log:</span> in the app, <span class="ep">mock:</span> in tests) make every branch assertable without a broker.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="06-testing-camel-routes.html"><div class="dir">← Previous</div>06 · Testing routes</a>
+      <a class="next" href="08-pipes-and-filters.html"><div class="dir">Next →</div>08 · Pipes &amp; Filters</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

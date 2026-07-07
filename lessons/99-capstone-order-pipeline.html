@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capstone: End-to-End ShopFlow Pipeline | EIP Hands-On</title>
+  <meta name="description" content="Compose eight Enterprise Integration Patterns into one Apache Camel order pipeline: translate, filter, de-duplicate, route, pay, fan out, and emit an event.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/99-capstone-order-pipeline.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Capstone: the End-to-End ShopFlow Pipeline">
+  <meta property="og:description" content="Compose eight EIPs into one runnable Apache Camel order pipeline, with a full end-to-end route and test.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/99-capstone-order-pipeline.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Capstone: the End-to-End ShopFlow Pipeline">
+  <meta name="twitter:description" content="Eight Enterprise Integration Patterns composed into one runnable Camel order pipeline.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Capstone: the End-to-End ShopFlow Pipeline", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/99-capstone-order-pipeline.html" } ] },
+      { "@type": "LearningResource", "name": "Capstone: the End-to-End ShopFlow Pipeline",
+        "description": "Compose eight Enterprise Integration Patterns into one runnable Apache Camel order pipeline and see why the order of the stages matters.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "End-to-End Message Pipeline (composed Enterprise Integration Patterns)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/99-capstone-order-pipeline">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Capstone › <span>99 · ShopFlow Pipeline</span></p>
+    <h1>Capstone: the End-to-End ShopFlow Pipeline</h1>
+    <p class="objective"><b>Assemble everything you've learned into one coherent order-processing pipeline.</b> The capstone shows how eight patterns compose — and why their <em>order</em> matters: de-duplicate before side effects, wrap payment in a dead-letter channel.</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>No single pattern ships an order. Real integrations are <b>compositions</b>: each stage's output is the next stage's input, and the value is in how they chain. This capstone wires eight EIPs from the course into one route — a <span class="ep">Message Translator</span>, <span class="ep">Message Filter</span>, <span class="ep">Idempotent Consumer</span>, <span class="ep">Wire Tap</span>, <span class="ep">Content-Based Router</span>, <span class="ep">Request-Reply</span>, <span class="ep">Multicast</span>, and <span class="ep">Event Message</span> — with a <span class="ep">Dead Letter Channel</span> catching failures. Every hop is in-memory (<span class="ep">direct:</span>/<span class="ep">mock:</span>), so it runs and tests green with no broker.</p>
+
+      <h2>The scenario</h2>
+      <p>A JSON order enters ShopFlow and flows through eight patterns: translate to an <span class="ep">Order</span> → filter out test and zero-value orders → de-duplicate by <span class="ep">orderId</span> → send an audit copy → route by country → authorize payment (waiting for the reply) → fan out to warehouse + invoicing → publish an <span class="ep">order-placed</span> event. A declined payment is retried once, then parked in a dead-letter channel instead of being lost.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="A JSON order flows through translate, filter, idempotent de-duplication, wire-tap audit, content-based routing, request-reply payment, multicast fan-out, and an order-placed event; declined payments divert to a dead-letter channel.">
+          <div class="step"><span class="lbl">direct:orders</span><span class="sub">JSON order in</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">translate</span><span class="sub">JSON → Order</span></div>
+          <div class="arrow">→</div>
+          <div class="step decision"><span class="lbl">filter</span><span class="sub">real &amp; payable?</span></div>
+          <div class="arrow">→</div>
+          <div class="step decision"><span class="lbl">idempotent</span><span class="sub">seen orderId?</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">wire tap</span><span class="sub">audit copy</span></div>
+          <div class="arrow">→</div>
+          <div class="step decision"><span class="lbl">route</span><span class="sub">by country</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">pay</span><span class="sub">req/reply · decline → DLQ</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">multicast</span><span class="sub">warehouse + invoicing</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">event</span><span class="sub">order-placed</span></div>
+        </div>
+        <figcaption>JSON → translate → filter → idempotent → wiretap → route → pay(req/reply) → multicast → event&nbsp;&nbsp;(declines → DLQ)</figcaption>
+      </figure>
+
+      <h2>The route</h2>
+      <div class="code"><div class="code-head"><span>ShopFlowRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>// (0) Dead Letter Channel: a declined payment is retried once, then parked (not lost).
+errorHandler(deadLetterChannel("{{ep.dead}}").maximumRedeliveries(1).redeliveryDelay(10));
+
+// (1) Message Translator — JSON text to a canonical Order POJO.
+from("direct:orders").routeId("intake")
+    .unmarshal().json(JsonLibrary.Jackson, Order.class)
+    .to("direct:validate");
+
+// (2) Message Filter — QA/test and zero-value orders never continue.
+from("direct:validate").routeId("validate")
+    .filter(simple("${body.totalAmount} &gt; 0 &amp;&amp; ${body.testFlag} == false"))
+        .to("direct:dedupe")
+    .end();
+
+// (3) Idempotent Consumer — each orderId is processed exactly once.
+from("direct:dedupe").routeId("dedupe")
+    .idempotentConsumer(simple("${body.orderId}"),
+            MemoryIdempotentRepository.memoryIdempotentRepository())
+        .to("direct:process")
+    .end();
+
+// (4) Wire Tap (audit) + (5) Content-Based Router (region).
+from("direct:process").routeId("process")
+    .wireTap("{{ep.audit}}")
+    .choice()
+        .when(simple("${body.country} == 'IN'")).setHeader("region", constant("domestic"))
+        .otherwise().setHeader("region", constant("international"))
+    .end()
+    .to("direct:pay");
+
+// (6) Request-Reply — call the payment gateway (InOut) and keep the order as the body.
+from("direct:pay").routeId("pay")
+    .setHeader("orderBackup", body())
+    .to(ExchangePattern.InOut, "direct:authorize")   // body becomes the auth code (the reply)
+    .setHeader("authCode", body())
+    .setBody(header("orderBackup"))                   // restore the Order as the body
+    .to("direct:fulfil");
+
+from("direct:authorize").routeId("payment-gateway")
+    .process(e -&gt; {
+        Order o = e.getMessage().getBody(Order.class);
+        if (o.isFraudulent()) {
+            throw new PaymentDeclinedException("payment declined for " + o.getOrderId());
+        }
+        e.getMessage().setBody("AUTH-" + o.getOrderId());
+    });
+
+// (7) Multicast fan-out + (8) Event Message (fire-and-forget).
+from("direct:fulfil").routeId("fulfil")
+    .log("Fulfilling ${body.orderId} (auth ${header.authCode}) region=${header.region}")
+    .multicast().to("{{ep.warehouse}}", "{{ep.invoicing}}").end()
+    .setExchangePattern(ExchangePattern.InOnly).to("{{ep.event}}");</code></pre></div>
+      <ol>
+        <li><b>(0)</b> the <span class="ep">Dead Letter Channel</span> wraps the whole context: a decline is retried once, then parked at <span class="ep">{{ep.dead}}</span> — never silently dropped.</li>
+        <li><b>(1)</b> the <span class="ep">Message Translator</span> unmarshals inbound JSON text into a canonical <span class="ep">Order</span> POJO the rest of the flow can reason about.</li>
+        <li><b>(2)</b> the <span class="ep">Message Filter</span> lets only real, payable orders through; QA/test flags and zero-value totals stop here.</li>
+        <li><b>(3)</b> the <span class="ep">Idempotent Consumer</span>, keyed on <span class="ep">${body.orderId}</span>, guarantees each order is processed exactly once — <em>before</em> any side effect fires.</li>
+        <li><b>(4)(5)</b> the <span class="ep">Wire Tap</span> forks an audit copy while the main flow continues, then the <span class="ep">Content-Based Router</span> tags a <span class="ep">region</span> header by country.</li>
+        <li><b>(6)</b> <span class="ep">Request-Reply</span> is an <span class="ep">InOut</span> call to the payment gateway; the reply (an auth code) comes back, so we stash the order first and restore it as the body afterwards.</li>
+        <li><b>(7)(8)</b> <span class="ep">Multicast</span> fans the authorized order to warehouse + invoicing, then an <span class="ep">InOnly</span> <span class="ep">Event Message</span> publishes <span class="ep">order-placed</span> fire-and-forget. The <span class="ep">{{ep.*}}</span> placeholders are real channels in production and mocks under test.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/99-capstone-order-pipeline spring-boot:run</code></pre></div>
+      <p>The route boots with the eight stages wired end to end and logs each fulfilment. Behind a firewall, or want the plain Apache Camel build? Add <span class="ep">-P upstream</span>.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>ShopFlowPipelineTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void validDomesticOrderFlowsAllTheWay() throws Exception {
+    warehouse.expectedMessageCount(1);
+    invoicing.expectedMessageCount(1);
+    event.expectedMessageCount(1);
+    audit.expectedMessageCount(1);
+    dead.expectedMessageCount(0);
+
+    template.sendBody("direct:orders", order("OK-IN-1", "IN", 999, false, false));
+
+    MockEndpoint.assertIsSatisfied(context);
+}</code></pre></div>
+      <p>The <span class="ep">order(...)</span> helper builds the JSON string, and in the test profile every <span class="ep">{{ep.*}}</span> resolves to a <span class="ep">mock:</span> endpoint — so this one assertion proves the full happy path: an audit copy is tapped, warehouse and invoicing both fire, an event is emitted, and nothing lands in the dead-letter channel. The three sibling tests prove test/zero orders are filtered, a duplicate <span class="ep">orderId</span> is processed once, and a fraudulent order's decline lands in <span class="ep">mock:dead</span>. Run just the tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/99-capstone-order-pipeline test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Give the payment gateway a flaky mode that throws once and then succeeds, and write a test proving the Dead Letter Channel's single retry lets the order through on the second attempt — so <span class="ep">mock:dead</span> stays empty and the event still fires.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>Real integrations are <b>compositions</b>: eight EIPs chain into one pipeline where each stage's output feeds the next.</li>
+        <li><b>Order matters</b> — de-duplicate before any side effect, tap for audit before payment, and wrap payment in a Dead Letter Channel so declines are parked, not lost.</li>
+        <li>Request-Reply (<span class="ep">InOut</span>) waits for the auth reply; an Event Message (<span class="ep">InOnly</span>) fires <span class="ep">order-placed</span> and moves on — the same route uses both deliberately.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="21-request-reply-and-event-message.html"><div class="dir">← Previous</div>21 · Request-Reply &amp; Events</a>
+      <a class="next" href="../curriculum.html"><div class="dir">Next →</div>Back to curriculum</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

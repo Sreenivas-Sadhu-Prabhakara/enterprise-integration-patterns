@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Message Filter — drop the noise | EIP Hands-On</title>
+  <meta name="description" content="Learn the Message Filter pattern in Apache Camel: use filter() to forward real orders and silently drop test traffic and zero-value orders in a runnable route.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/09-message-filter.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Message Filter — drop the noise">
+  <meta property="og:description" content="Forward real orders and silently drop test traffic and zero-value orders, with a runnable Camel route and test.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/09-message-filter.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Message Filter — drop the noise">
+  <meta name="twitter:description" content="Keep only real orders — silently drop test and zero-value traffic with Camel's filter().">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Message Filter", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/09-message-filter.html" } ] },
+      { "@type": "LearningResource", "name": "Message Filter",
+        "description": "Forward a message only when it satisfies a predicate and silently drop everything else, using Apache Camel's filter() DSL.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Message Filter (Enterprise Integration Pattern)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/09-message-filter">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Routing › <span>09 · Message Filter</span></p>
+    <h1>Message Filter: Drop Test and Zero-Value Orders</h1>
+    <p class="objective"><b>Discard uninteresting messages so downstream never sees them.</b> Reach for a Message Filter whenever some inputs are simply noise — heartbeats, test traffic, empty or zero-value records — that no consumer should ever process.</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>Think of a spam filter on your inbox: it forwards the mail worth reading and quietly bins the rest. A Message Filter does exactly that for a message stream — it forwards a message only when it satisfies a predicate and <b>silently drops</b> everything else. In Camel that's the <span class="ep">filter(predicate)</span> block: a one-armed <span class="ep">choice()</span> with no <span class="ep">otherwise()</span>. Messages that fail the predicate just reach the end of the block and stop — no branch, no trace.</p>
+
+      <h2>The scenario</h2>
+      <p>ShopFlow's order stream is polluted by two kinds of junk that must never reach fulfilment: <b>zero-value</b> orders (nothing to fulfil) and <b>test-flagged</b> orders (QA smoke traffic). We keep a message only when it is a real order worth money — <span class="ep">totalAmount &gt; 0</span> <b>and</b> <span class="ep">testFlag == false</span> — and route survivors to a single <span class="ep">{{ep.out}}</span> placeholder. Everything else is dropped into the void.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="direct:orders enters a Message Filter; if the predicate is true the order goes to ep.out, otherwise it is silently dropped.">
+          <div class="step"><span class="lbl">direct:orders</span><span class="sub">incoming order</span></div>
+          <div class="arrow">→</div>
+          <div class="step decision"><span class="lbl">filter()</span><span class="sub">amount &gt; 0 &amp;&amp; !test</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">→ ep.out</span><span class="sub">predicate true</span></div>
+          <div class="step"><span class="lbl">✕ dropped</span><span class="sub">predicate false</span></div>
+        </div>
+        <figcaption>direct:orders → filter(amount &gt; 0 &amp;&amp; !test) → ep.out | else silently dropped</figcaption>
+      </figure>
+
+      <h2>The route</h2>
+      <div class="code"><div class="code-head"><span>MessageFilterRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:orders")                                         // (1) the channel orders arrive on
+    .routeId("filter")                                        //     always name a route (tracing, metrics, tests)
+    .log("Considering order ${body.orderId} (amount=${body.totalAmount}, test=${body.testFlag})")
+    .filter(simple("${body.totalAmount} &gt; 0 &amp;&amp; ${body.testFlag} == false")) // (2) the Message Filter itself
+        .log("Order ${body.orderId} passed the filter -&gt; forwarding")       // (3) only survivors get here
+        .to("{{ep.out}}")                                     // (4) the one destination for kept messages
+    .end();                                                   // (5) messages that fail the predicate are dropped</code></pre></div>
+      <ol>
+        <li><b>(1)</b> the route consumes orders from an in-memory <span class="ep">direct:</span> channel.</li>
+        <li><b>(2)</b> <span class="ep">filter(simple(...))</span> is the Message Filter — a single Simple predicate combining an amount test and a boolean flag test with <span class="ep">&amp;&amp;</span>.</li>
+        <li><b>(3)</b> only messages that satisfy the predicate flow past the filter, so this log line and the <span class="ep">.to(...)</span> run for survivors only.</li>
+        <li><b>(4)</b> the one destination is a <span class="ep">{{ep.out}}</span> placeholder — production points it at a real <span class="ep">direct:</span>/<span class="ep">jms:</span> endpoint while tests point it at a mock.</li>
+        <li><b>(5)</b> <span class="ep">.end()</span> closes the filter block; messages that failed the predicate simply reach here and are <b>silently dropped</b>.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/09-message-filter spring-boot:run</code></pre></div>
+      <p>A demo feeder injects a rotating sample every 3 seconds — one real order, one zero-value order, one test order — so you'll watch the real one land on the kept path while the other two are considered and then silently dropped. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>MessageFilterTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void keepsRealOrdersAndDropsRejectableOnes() throws Exception {
+    Order valid = new Order("A-1001", 999, false);   // real money, not a test  -&gt; KEPT
+
+    // Exactly one message should survive the filter, and it must be the valid order.
+    out.expectedMessageCount(1);
+    out.expectedBodiesReceived(valid);
+
+    template.sendBody("direct:orders", valid);                         // KEPT
+    template.sendBody("direct:orders", new Order("A-1002", 0, false)); // DROPPED (fails totalAmount &gt; 0)
+    template.sendBody("direct:orders", new Order("A-1003", 250, true)); // DROPPED (fails testFlag == false)
+
+    MockEndpoint.assertIsSatisfied(context);
+}</code></pre></div>
+      <p>In the test profile <span class="ep">{{ep.out}}</span> resolves to <span class="ep">mock:out</span>, so the spec sends three orders — a valid one, a zero-value one, and a test-flagged one — and asserts that <b>exactly one</b> reaches the mock. Dropped messages leave no trace, so we prove them by their <em>absence</em>. Run just the tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/09-message-filter test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Silent drop is fine for noise, but wrong for anomalies. Add a second route (or an explicit else) that sends the rejected orders to a <span class="ep">mock:invalid</span> Invalid Message Channel instead of the void, and assert both mocks.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>A Message Filter forwards a message only when it satisfies a predicate and silently drops everything else.</li>
+        <li><span class="ep">filter(predicate)</span> is a one-armed <span class="ep">choice()</span> — reach for it when the "else" is simply "drop it".</li>
+        <li>Drop noise, capture anomalies: when rejects need auditing or replay, route them to an Invalid Message Channel rather than the void.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="08-pipes-and-filters.html"><div class="dir">← Previous</div>08 · Pipes &amp; Filters</a>
+      <a class="next" href="10-content-based-router.html"><div class="dir">Next →</div>10 · Content-Based Router</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

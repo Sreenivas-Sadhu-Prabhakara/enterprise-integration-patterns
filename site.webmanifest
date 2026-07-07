@@ -1,0 +1,13 @@
+{
+  "name": "EIP Hands-On — Enterprise Integration Patterns",
+  "short_name": "EIP Hands-On",
+  "description": "A hands-on course on Enterprise Integration Patterns with Apache Camel and Spring Boot.",
+  "start_url": "/enterprise-integration-patterns/",
+  "scope": "/enterprise-integration-patterns/",
+  "display": "standalone",
+  "background_color": "#0B1520",
+  "theme_color": "#0B1520",
+  "icons": [
+    { "src": "assets/img/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

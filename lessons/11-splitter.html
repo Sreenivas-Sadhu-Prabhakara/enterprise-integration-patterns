@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Splitter — split a bulk order into items | EIP Hands-On</title>
+  <meta name="description" content="Learn the Splitter pattern in Apache Camel: split() fans one bulk order into one message per line item, each tagged with its split index and total size.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/11-splitter.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Splitter — split a bulk order into items">
+  <meta property="og:description" content="Fan one bulk order into a message per line item so each can be handled on its own, with a runnable Camel route and test.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/11-splitter.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Splitter — split a bulk order into items">
+  <meta name="twitter:description" content="Fan a composite message into one message per element with Camel's split().">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Splitter", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/11-splitter.html" } ] },
+      { "@type": "LearningResource", "name": "Splitter",
+        "description": "Transmit one composite message as a sequence of smaller messages using Apache Camel's split() DSL, so each element can be processed on its own.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Splitter (Enterprise Integration Pattern)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/11-splitter">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Routing › <span>11 · Splitter</span></p>
+    <h1>Splitter: Break a Bulk Order into Line Items</h1>
+    <p class="objective"><b>Transmit one composite message as a sequence of smaller messages.</b> Reach for it whenever a single payload really carries "a list of things" and each element must be handled on its own.</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>Picture a bulk order arriving in one envelope with a packing list inside. A Splitter opens it and puts each line item onto the belt as its own message. In Camel that's <span class="ep">split(expression)</span> — it evaluates an expression that yields a collection and emits one exchange per element. Camel stamps every sub-message with <span class="ep">CamelSplitIndex</span> (its 0-based position) and, unless you add <span class="ep">.streaming()</span>, <span class="ep">CamelSplitSize</span> (the total), so a later step can track progress or re-assemble the pieces.</p>
+
+      <h2>The scenario</h2>
+      <p>ShopFlow receives a bulk <span class="ep">Order</span> that bundles several line items — <span class="ep">Order{ orderId: A-1001, items: [SKU-1, SKU-2, SKU-3] }</span> should become the three messages <b>SKU-1</b>, then <b>SKU-2</b>, then <b>SKU-3</b>. We fan the list out with <span class="ep">split(simple("${body.items}"))</span>, sending each item to a <span class="ep">{{ep.item}}</span> placeholder — a <span class="ep">log:</span> endpoint when you run the app, a <span class="ep">mock:</span> endpoint under test.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="direct:orders carries one bulk order into a split on body.items, which fans out to ep.item once per line item, each tagged with its CamelSplitIndex.">
+          <div class="step"><span class="lbl">direct:orders</span><span class="sub">1 bulk order</span></div>
+          <div class="arrow">→</div>
+          <div class="step decision"><span class="lbl">split(body.items)</span><span class="sub">fan the list out</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">→ ep.item</span><span class="sub">CamelSplitIndex 0</span></div>
+          <div class="step"><span class="lbl">→ ep.item</span><span class="sub">CamelSplitIndex 1</span></div>
+          <div class="step"><span class="lbl">→ ep.item</span><span class="sub">CamelSplitIndex n</span></div>
+        </div>
+        <figcaption>direct:orders → split(body.items) → ep.item (once per line item)</figcaption>
+      </figure>
+
+      <h2>The route</h2>
+      <div class="code"><div class="code-head"><span>SplitterRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:orders")                                          // (1) a bulk order arrives as ONE message
+    .routeId("splitter")
+    .log("Splitting order ${body.orderId}")
+    .split(simple("${body.items}"))                            // (2) the Splitter: fan the list out
+        // .streaming()                                        //     enable for huge inputs: constant
+        //                                                     //     memory, but CamelSplitSize is
+        //                                                     //     unknown until the final element
+        .log("item ${header.CamelSplitIndex} of ${header.CamelSplitSize}: ${body}") // (3) per-item
+        .to("{{ep.item}}")                                     // (4) each item continues as its own message
+    .end();                                                    // (5) split ends; the original exchange resumes</code></pre></div>
+      <ol>
+        <li><b>(1)</b> the route consumes a bulk order from an in-memory <span class="ep">direct:</span> channel — one message carrying a list.</li>
+        <li><b>(2)</b> <span class="ep">split(simple("${body.items}"))</span> is the Splitter: it evaluates the expression to a collection and emits one exchange per element.</li>
+        <li><b>(3)</b> inside the split block each sub-message is logged with the <span class="ep">CamelSplitIndex</span> and <span class="ep">CamelSplitSize</span> headers Camel stamps automatically.</li>
+        <li><b>(4)</b> each item flows on to the <span class="ep">{{ep.item}}</span> placeholder so production points it at a real handler while tests point it at a mock.</li>
+        <li><b>(5)</b> <span class="ep">.end()</span> closes the split and the original exchange resumes. For very large lists add <span class="ep">.streaming()</span> to iterate lazily — at the cost of an unknown <span class="ep">CamelSplitSize</span> until the last element.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/11-splitter spring-boot:run</code></pre></div>
+      <p>A demo feeder injects a sample 3-line order every 3 seconds — watch a <span class="ep">Splitting order A-1001</span> line followed by <span class="ep">item 0 of 3</span>, <span class="ep">item 1 of 3</span>, <span class="ep">item 2 of 3</span> landing one per item. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>SplitterTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void splitsBulkOrderIntoOneMessagePerLineItem() throws Exception {
+    // ONE order in with THREE items -&gt; THREE messages out, one per item, in order.
+    item.expectedMessageCount(3);
+    item.expectedBodiesReceived("SKU-1", "SKU-2", "SKU-3");
+
+    template.sendBody("direct:orders",
+            new Order("A-1001", List.of("SKU-1", "SKU-2", "SKU-3")));
+
+    MockEndpoint.assertIsSatisfied(context);
+}</code></pre></div>
+      <p>In the test profile <span class="ep">{{ep.item}}</span> resolves to <span class="ep">mock:item</span>, so the test asserts exactly three messages fan out with the right bodies in order. A second test proves every sub-message carries the right <span class="ep">CamelSplitIndex</span> (0, 1, 2) and <span class="ep">CamelSplitSize</span> (3). Run just the tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/11-splitter test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Send an order of five items and add an assertion that every sub-message reports <span class="ep">CamelSplitSize == 5</span>. Then add <span class="ep">.streaming()</span> after <span class="ep">split(...)</span> and watch which assertion breaks.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>A Splitter turns one composite message into a sequence of smaller messages, one per element.</li>
+        <li><span class="ep">split(expression)</span> is the Camel DSL — and Camel stamps each sub-message with <span class="ep">CamelSplitIndex</span> and (unless streaming) <span class="ep">CamelSplitSize</span>.</li>
+        <li>A property-placeholder per-item endpoint keeps the same route production-real and test-assertable; <span class="ep">.streaming()</span> trades a known size for constant memory on huge inputs.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="10-content-based-router.html"><div class="dir">← Previous</div>10 · Content-Based Router</a>
+      <a class="next" href="12-aggregator.html"><div class="dir">Next →</div>12 · Aggregator</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

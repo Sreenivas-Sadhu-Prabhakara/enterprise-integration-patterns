@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Content-Based Router — route by content | EIP Hands-On</title>
+  <meta name="description" content="Learn the Content-Based Router in Apache Camel: use choice()/when()/otherwise() to send each message to a different destination by its content.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/10-content-based-router.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Content-Based Router — route by content">
+  <meta property="og:description" content="Send each message to a different destination based on its content, with a runnable Camel route and test.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/10-content-based-router.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Content-Based Router — route by content">
+  <meta name="twitter:description" content="Route each message by its content with choice()/when()/otherwise().">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Content-Based Router", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/10-content-based-router.html" } ] },
+      { "@type": "LearningResource", "name": "Content-Based Router",
+        "description": "Route each message to a different destination based on its content using Apache Camel's choice() DSL.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Content-Based Router (Enterprise Integration Pattern)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/10-content-based-router">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Routing › <span>10 · Content-Based Router</span></p>
+    <h1>Content-Based Router</h1>
+    <p class="objective"><b>Send each message to a different destination based on its content.</b> Reach for it whenever "where this goes next" depends on "what's inside".</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>Imagine a mailroom sorting letters by ZIP code. A Content-Based Router does the same for messages: it inspects each one and forwards it down exactly one branch. In Camel that's the <span class="ep">choice()</span> block — a chain of <span class="ep">when(predicate)</span> branches with a final <span class="ep">otherwise()</span>. Always provide the <span class="ep">otherwise()</span>, or unmatched messages quietly vanish.</p>
+
+      <h2>The scenario</h2>
+      <p>ShopFlow fulfils orders differently by region: <b>IN</b> goes to the local warehouse, EU countries (<b>DE, FR, ES, IT</b>) go to the EU hub, and everything else goes to an international handler. We route each order by its <span class="ep">country</span>.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="direct:orders enters a choice on country, branching to domestic, EU hub, or international.">
+          <div class="step"><span class="lbl">direct:orders</span><span class="sub">incoming order</span></div>
+          <div class="arrow">→</div>
+          <div class="step decision"><span class="lbl">choice()</span><span class="sub">on country</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">→ domestic</span><span class="sub">country == IN</span></div>
+          <div class="step"><span class="lbl">→ eu hub</span><span class="sub">DE / FR / ES / IT</span></div>
+          <div class="step"><span class="lbl">→ international</span><span class="sub">otherwise</span></div>
+        </div>
+        <figcaption>direct:orders → choice(country) → domestic | eu | international</figcaption>
+      </figure>
+
+      <h2>The route</h2>
+      <div class="code"><div class="code-head"><span>ContentBasedRouterRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:orders")                                     // (1) the channel orders arrive on
+    .routeId("content-based-router")                      //     always name a route
+    .log("Routing order ${body.orderId} bound for ${body.country}")
+    .choice()                                             // (2) the Content-Based Router
+        .when(simple("${body.country} == 'IN'"))          // (3) domestic
+            .to("{{ep.domestic}}")
+        .when(simple("${body.country} regex '(DE|FR|ES|IT)'"))  // (4) EU hub
+            .to("{{ep.eu}}")
+        .otherwise()                                      // (5) ALWAYS handle the rest
+            .to("{{ep.international}}")
+    .end();</code></pre></div>
+      <ol>
+        <li><b>(1)</b> the route consumes orders from an in-memory <span class="ep">direct:</span> channel.</li>
+        <li><b>(2)</b> <span class="ep">choice()</span> opens the router; it evaluates each <span class="ep">when</span> in order and takes the first match.</li>
+        <li><b>(3)(4)</b> predicates are written in the Simple language — an equality test and a regex over the order's country.</li>
+        <li><b>(5)</b> <span class="ep">otherwise()</span> catches everything unmatched. The branch targets are <span class="ep">{{ep.*}}</span> placeholders so production points them at real channels while tests point them at mocks.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/10-content-based-router spring-boot:run</code></pre></div>
+      <p>A demo feeder sends orders from rotating countries every few seconds — watch each land on the matching branch in the log. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>ContentBasedRouterTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void domesticOrderGoesDomestic() throws Exception {
+    domestic.expectedMessageCount(1);
+    eu.expectedMessageCount(0);
+    international.expectedMessageCount(0);
+
+    template.sendBody("direct:orders", new Order("A-1001", "IN", 999));
+
+    MockEndpoint.assertIsSatisfied(context);
+}</code></pre></div>
+      <p>In the test profile the branch endpoints resolve to <span class="ep">mock:domestic</span>, <span class="ep">mock:eu</span>, <span class="ep">mock:international</span>, so each test asserts exactly one branch fires and the others stay empty. Run just the tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/10-content-based-router test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Add a fourth branch for orders over €10,000 to a <span class="ep">mock:highvalue</span> endpoint, and write the assertion that proves it.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>A Content-Based Router forwards each message down exactly one branch, chosen by its content.</li>
+        <li><span class="ep">choice().when(...).otherwise()</span> is the Camel DSL — and <span class="ep">otherwise()</span> is not optional.</li>
+        <li>Property-placeholder endpoints let the same route be production-real and test-assertable.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="09-message-filter.html"><div class="dir">← Previous</div>09 · Message Filter</a>
+      <a class="next" href="11-splitter.html"><div class="dir">Next →</div>11 · Splitter</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

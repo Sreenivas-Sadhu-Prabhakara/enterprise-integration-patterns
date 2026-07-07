@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aggregator — re-assemble messages into one | EIP Hands-On</title>
+  <meta name="description" content="Learn the Aggregator pattern in Apache Camel: correlate messages by key and merge into one, released on completionSize or a timeout — runnable route and test.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/12-aggregator.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Aggregator — re-assemble messages into one">
+  <meta property="og:description" content="Correlate related messages by key and merge them into one with a runnable Camel route and test.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/12-aggregator.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Aggregator — re-assemble messages into one">
+  <meta name="twitter:description" content="Merge correlated messages into one with completionSize and completionTimeout.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Aggregator", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/12-aggregator.html" } ] },
+      { "@type": "LearningResource", "name": "Aggregator",
+        "description": "Correlate related messages by a key and merge them into a single message using Apache Camel's aggregate() DSL, releasing the group on completionSize or completionTimeout.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Aggregator (Enterprise Integration Pattern)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/12-aggregator">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Routing › <span>12 · Aggregator</span></p>
+    <h1>Aggregator: Re-Assemble Messages into One</h1>
+    <p class="objective"><b>Combine independent, related messages back into one.</b> Reach for it whenever results computed apart — line items, shard responses, batch rows — must be re-assembled and released together once the group is complete.</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>Picture a delivery depot gathering every parcel bound for one address before the van leaves. An Aggregator does that for messages: it holds related messages until the group is complete, then releases a single combined message. It is the mirror image of the Splitter — where a Splitter fans one message out into many, an Aggregator collects the many back into one. In Camel it's the <span class="ep">aggregate()</span> block, and it needs three things: a <b>correlation expression</b> (which messages belong together), an <b>AggregationStrategy</b> (how to fold two into one), and at least one <b>completion condition</b> (when to let go). Omit the completion condition and the group waits forever — so <span class="ep">aggregate()</span> always needs one.</p>
+
+      <h2>The scenario</h2>
+      <p>ShopFlow prices and validates each line item of an order independently, then must send <b>exactly one</b> confirmation per order. Every item arrives on <span class="ep">direct:items</span> carrying two headers: <span class="ep">orderId</span> — the correlation key that says which order the item belongs to — and <span class="ep">total</span>, how many items that order will send, which drives completion. The Aggregator groups items by <span class="ep">orderId</span>, folds each into an <span class="ep">OrderConfirmation</span>, and emits the confirmation when all expected items are in, or after a short timeout if one never arrives.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="direct:items enters an aggregator that correlates on the orderId header, then releases one confirmation to ep.out when completionSize equals the total header, or when a 2-second timeout fires.">
+          <div class="step"><span class="lbl">direct:items</span><span class="sub">one line item</span></div>
+          <div class="arrow">→</div>
+          <div class="step decision"><span class="lbl">aggregate()</span><span class="sub">correlate on orderId</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">completionSize</span><span class="sub">== total header</span></div>
+          <div class="step"><span class="lbl">completionTimeout</span><span class="sub">2s fallback</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">ep.out</span><span class="sub">one confirmation</span></div>
+        </div>
+        <figcaption>direct:items → aggregate(orderId) → completionSize == total | timeout 2s → ep.out</figcaption>
+      </figure>
+
+      <h2>The route</h2>
+      <div class="code"><div class="code-head"><span>AggregatorRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:items")                                       // (1) each line item arrives on its own
+    .routeId("aggregator")                                 //     always name a route (tracing, metrics, tests)
+    .log("Item ${body.sku} for order ${header.orderId} (${header.total} expected)")
+    .aggregate(header("orderId"), new LineItemAggregationStrategy()) // (2) correlate on orderId + how to merge
+        .completionSize(header("total"))                   // (3) complete when all expected items are in…
+        .completionTimeout(2000)                           // (4) …or after 2s of silence (the safety net)
+        .log("Confirmation for order ${body.orderId}: ${body.totalAmount} total")
+        .to("{{ep.out}}")                                  // (5) emit ONE aggregated confirmation
+    .end();</code></pre></div>
+      <ol>
+        <li><b>(1)</b> each item is its own message on the in-memory <span class="ep">direct:items</span> channel; the <span class="ep">orderId</span> and <span class="ep">total</span> ride as headers, not in the body.</li>
+        <li><b>(2)</b> <span class="ep">aggregate()</span> opens the Aggregator: the first argument is the correlation expression (<span class="ep">header("orderId")</span>), the second is the <span class="ep">LineItemAggregationStrategy</span> that says how to fold two exchanges into one — seeding a fresh <span class="ep">OrderConfirmation</span> on the first item, then adding each later item to it.</li>
+        <li><b>(3)</b> <span class="ep">completionSize(header("total"))</span> releases the group the moment the expected number of items has arrived — the happy path.</li>
+        <li><b>(4)</b> <span class="ep">completionTimeout(2000)</span> is the safety net: if an expected item never shows up, the partial group is still released after 2s so it never blocks forever.</li>
+        <li><b>(5)</b> exactly one aggregated confirmation is emitted to the <span class="ep">{{ep.out}}</span> placeholder — a real <span class="ep">direct:</span>/<span class="ep">jms:</span> endpoint in production, <span class="ep">mock:out</span> in tests.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/12-aggregator spring-boot:run</code></pre></div>
+      <p>A demo feeder emits a fresh order every 6 seconds, <b>splits</b> it into 3 line items, and feeds them to the Aggregator — so you see three <span class="ep">Item …</span> lines followed by one <span class="ep">Confirmation for order A-… : 100 total</span>, the whole splitter → aggregator round-trip. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>AggregatorTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void threeLineItemsBecomeOneConfirmation() throws Exception {
+    out.expectedMessageCount(1);
+
+    Map&lt;String, Object&gt; headers = headers("A-1", 3);
+    template.sendBodyAndHeaders("direct:items", new LineItem("SKU-BOOK", 30), headers);
+    template.sendBodyAndHeaders("direct:items", new LineItem("SKU-PEN", 5), headers);
+    template.sendBodyAndHeaders("direct:items", new LineItem("SKU-BAG", 65), headers);
+
+    // completionSize (== total header, 3) fires as soon as the third item arrives.
+    out.assertIsSatisfied();
+
+    OrderConfirmation confirmation = out.getReceivedExchanges().get(0).getIn().getBody(OrderConfirmation.class);
+    assertEquals("A-1", confirmation.getOrderId());
+    assertEquals(3, confirmation.getItems().size());
+    assertEquals(100, confirmation.getTotalAmount());   // 30 + 5 + 65
+}</code></pre></div>
+      <p>In the test profile <span class="ep">{{ep.out}}</span> resolves to <span class="ep">mock:out</span>, so the test asserts exactly one confirmation is emitted, then inspects it — the right order id, all 3 items, and the folded total of 100. Sibling tests prove the timeout releases a partial when an item goes missing and that two interleaved orders aggregate independently. Run just the tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/12-aggregator test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Send only 2 of a promised 3 items and shorten the rule to <span class="ep">completionTimeout(500)</span>, then write the assertion that proves the partial confirmation with 2 items still lands — and notice how long the test waits for it.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>An Aggregator is the mirror of the Splitter: it correlates related messages by a key and merges them back into a single message.</li>
+        <li>The <span class="ep">AggregationStrategy</span> holds the merge logic — <span class="ep">oldExchange</span> is null for the first message of a group, then each later message is folded into the running accumulator.</li>
+        <li>A completion condition decides when to release: <span class="ep">completionSize</span> for the happy path, <span class="ep">completionTimeout</span> as a safety net so a missing message never blocks the group forever.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="11-splitter.html"><div class="dir">← Previous</div>11 · Splitter</a>
+      <a class="next" href="13-recipient-list.html"><div class="dir">Next →</div>13 · Recipient List</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

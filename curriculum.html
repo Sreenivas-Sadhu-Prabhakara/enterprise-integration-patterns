@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Curriculum — 21 Enterprise Integration Patterns | EIP Hands-On</title>
+  <meta name="description" content="The full curriculum: 21 runnable Apache Camel + Spring Boot lessons, from your first route to a composed order pipeline across five tracks.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Curriculum — 21 Enterprise Integration Patterns">
+  <meta property="og:description" content="21 runnable Camel + Spring Boot lessons, from your first route to a composed order pipeline.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Curriculum — 21 Enterprise Integration Patterns">
+  <meta name="twitter:description" content="21 runnable Camel + Spring Boot lessons.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+      { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="index.html">Home</a>
+      <a href="curriculum.html" aria-current="page">Curriculum</a>
+      <a href="setup.html">Setup</a>
+      <a href="glossary.html">Glossary</a>
+      <a href="about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <section class="wrap" style="padding-bottom:0">
+    <p class="kicker">The curriculum</p>
+    <h1>21 patterns, one order pipeline.</h1>
+    <p class="lead muted" style="max-width:64ch">Work top to bottom — each lesson is self-contained but builds the same <b>ShopFlow</b> example. Every lesson is a runnable, tested Maven module.</p>
+  </section>
+
+  <section class="wrap" style="padding-top:30px">
+    <div class="track">
+      <div class="track-group"><p class="track-label">Foundations</p>
+        <a class="lesson-row" href="lessons/01-spring-boot-primer.html"><span class="n">01</span><span class="t">Spring Boot in 30 minutes (for Camel)</span><span class="d">DI, beans, config — the on-ramp</span></a>
+        <a class="lesson-row" href="lessons/02-wire-camel.html"><span class="n">02</span><span class="t">Wire Camel: the BOM &amp; one-starter-per-component</span><span class="d">Boot a CamelContext</span></a>
+        <a class="lesson-row" href="lessons/03-your-first-route.html"><span class="n">03</span><span class="t">Your first route: from(), to(), routeId()</span><span class="d">Route anatomy</span></a>
+        <a class="lesson-row" href="lessons/04-message-channel-and-endpoint.html"><span class="n">04</span><span class="t">Message Channel &amp; Endpoint: direct: vs seda:</span><span class="d">Sync vs async</span></a>
+        <a class="lesson-row" href="lessons/05-message-and-exchange.html"><span class="n">05</span><span class="t">The Message &amp; the Exchange</span><span class="d">Bodies, headers, Processors</span></a>
+        <a class="lesson-row" href="lessons/06-testing-camel-routes.html"><span class="n">06</span><span class="t">Testing Camel routes</span><span class="d">MockEndpoint, AdviceWith</span></a>
+        <a class="lesson-row" href="lessons/07-error-handling-basics.html"><span class="n">07</span><span class="t">When a route throws</span><span class="d">onException, doTry/doCatch</span></a>
+      </div>
+      <div class="track-group"><p class="track-label">Message routing</p>
+        <a class="lesson-row" href="lessons/08-pipes-and-filters.html"><span class="n">08</span><span class="t">Pipes &amp; Filters</span><span class="d">Compose small steps</span></a>
+        <a class="lesson-row" href="lessons/09-message-filter.html"><span class="n">09</span><span class="t">Message Filter</span><span class="d">Drop what you don't want</span></a>
+        <a class="lesson-row" href="lessons/10-content-based-router.html"><span class="n">10</span><span class="t">Content-Based Router</span><span class="d">Route by content</span></a>
+        <a class="lesson-row" href="lessons/11-splitter.html"><span class="n">11</span><span class="t">Splitter</span><span class="d">One message → many</span></a>
+        <a class="lesson-row" href="lessons/12-aggregator.html"><span class="n">12</span><span class="t">Aggregator</span><span class="d">Many messages → one</span></a>
+        <a class="lesson-row" href="lessons/13-recipient-list.html"><span class="n">13</span><span class="t">Recipient List</span><span class="d">Dynamic fan-out</span></a>
+        <a class="lesson-row" href="lessons/14-wire-tap.html"><span class="n">14</span><span class="t">Wire Tap</span><span class="d">Copy without disturbing</span></a>
+      </div>
+      <div class="track-group"><p class="track-label">Transformation &amp; messaging</p>
+        <a class="lesson-row" href="lessons/15-message-translator.html"><span class="n">15</span><span class="t">Message Translator</span><span class="d">JSON ↔ POJO with Jackson</span></a>
+        <a class="lesson-row" href="lessons/16-content-enricher.html"><span class="n">16</span><span class="t">Content Enricher</span><span class="d">Add data from elsewhere</span></a>
+        <a class="lesson-row" href="lessons/18-point-to-point-and-pub-sub.html"><span class="n">18</span><span class="t">Point-to-Point vs Publish-Subscribe</span><span class="d"><span class="badge broker">broker</span> queues &amp; topics</span></a>
+      </div>
+      <div class="track-group"><p class="track-label">Reliability &amp; capstone</p>
+        <a class="lesson-row" href="lessons/19-dead-letter-channel.html"><span class="n">19</span><span class="t">Dead Letter Channel &amp; Redelivery</span><span class="d">Don't lose messages</span></a>
+        <a class="lesson-row" href="lessons/20-idempotent-consumer.html"><span class="n">20</span><span class="t">Idempotent Consumer</span><span class="d">Exactly once</span></a>
+        <a class="lesson-row" href="lessons/21-request-reply-and-event-message.html"><span class="n">21</span><span class="t">Request-Reply vs Event Message</span><span class="d">InOut vs InOnly</span></a>
+        <a class="lesson-row" href="lessons/99-capstone-order-pipeline.html"><span class="n">99</span><span class="t">Capstone: the end-to-end pipeline</span><span class="d">Eight patterns, composed</span></a>
+      </div>
+    </div>
+    <p style="margin-top:30px"><a class="btn btn-primary" href="setup.html">Set up &amp; start with lesson 01 →</a></p>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="curriculum.html">Curriculum</a><a href="setup.html">Setup</a><a href="glossary.html">Glossary</a><a href="about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="assets/js/nav.js"></script>
+</body>
+</html>

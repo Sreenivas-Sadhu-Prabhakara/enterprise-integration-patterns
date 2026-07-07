@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dead Letter Channel &amp; Redelivery | EIP Hands-On</title>
+  <meta name="description" content="Learn the Dead Letter Channel pattern in Apache Camel: retry a failing message a few times, then route the exhausted exchange to a dead letter endpoint.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/19-dead-letter-channel.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Dead Letter Channel &amp; Redelivery">
+  <meta property="og:description" content="Retry a failing message, then move the exhausted exchange to a dead letter channel, with a runnable Camel route and test.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/19-dead-letter-channel.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Dead Letter Channel &amp; Redelivery">
+  <meta name="twitter:description" content="Retry, then dead-letter the exhausted exchange with a redelivery policy.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Dead Letter Channel & Redelivery", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/19-dead-letter-channel.html" } ] },
+      { "@type": "LearningResource", "name": "Dead Letter Channel & Redelivery",
+        "description": "Retry a failing message with a redelivery policy, then route the exhausted exchange to a dedicated dead letter endpoint using Apache Camel's deadLetterChannel error handler.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Dead Letter Channel (Enterprise Integration Pattern)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/19-dead-letter-channel">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Reliability › <span>19 · Dead Letter Channel &amp; Redelivery</span></p>
+    <h1>Dead Letter Channel &amp; Redelivery</h1>
+    <p class="objective"><b>When a step fails, don't drop the message — retry it a few times, then move the exhausted exchange to a dedicated dead letter channel.</b> Reach for it whenever the downstream might be flaky or the payload might be bad, and silently losing the message is unacceptable.</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>A failed delivery has two bad endings: throw the message away, or crash the whole route. A Dead Letter Channel gives it a third: retry a bounded number of times, and if it still won't go through, divert it to a side channel where a human or a replay job can deal with it later. Two knobs do the work — the <span class="ep">redelivery policy</span> (<span class="ep">maximumRedeliveries</span>, <span class="ep">redeliveryDelay</span>, optionally <span class="ep">backOffMultiplier</span> to grow the delay) and the <span class="ep">deadLetterChannel(endpoint)</span> that receives the give-up message. Because the channel <em>handles</em> the exhausted exchange, the caller never sees the exception — unlike Camel's default handler, which rethrows.</p>
+
+      <h2>The scenario</h2>
+      <p>ShopFlow charges each order through a payment gateway (<span class="ep">PaymentBean</span>). A good card (<span class="ep">failPayment=false</span>) clears on the first try and flows on to the OK channel. A permanently declined card (<span class="ep">failPayment=true</span>) throws every time: it is retried <b>3×</b>, 20&nbsp;ms apart, and once exhausted it lands on the Dead Letter Channel instead of being lost.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="direct:orders calls the payment bean; on success it reaches ep.ok, on a throw the Dead Letter Channel retries up to three times and, once exhausted, routes the exchange to ep.dead.">
+          <div class="step"><span class="lbl">direct:orders</span><span class="sub">incoming order</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">bean: charge</span><span class="sub">PaymentBean.charge</span></div>
+          <div class="arrow">→</div>
+          <div class="step decision"><span class="lbl">Dead Letter Channel</span><span class="sub">retry 3× · 20ms</span></div>
+          <div class="step"><span class="lbl">→ ep.ok</span><span class="sub">success, paid</span></div>
+          <div class="step"><span class="lbl">↺ retry ×3</span><span class="sub">back to charge</span></div>
+          <div class="step"><span class="lbl">→ ep.dead</span><span class="sub">exhausted</span></div>
+        </div>
+        <figcaption>direct:orders → charge → ep.ok (success) | throws → retry ×3 → exhausted → ep.dead</figcaption>
+      </figure>
+
+      <h2>The route</h2>
+      <div class="code"><div class="code-head"><span>DeadLetterChannelRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:orders")                                    // (1) the channel orders arrive on
+    .routeId("dlq")                                      //     always name a route
+    .errorHandler(deadLetterChannel("{{ep.dead}}")       // (2) the Dead Letter Channel itself
+        .maximumRedeliveries(3)                          // (3) retry up to 3 times before giving up
+        .redeliveryDelay(20))                            // (4) wait 20 ms between attempts (tiny = fast tests)
+    .log("Charging order ${body.orderId} (amount ${body.amount})")
+    .bean("paymentBean", "charge")                       // (5) may throw PaymentDeclinedException
+    .log("Order ${body.orderId} paid OK")
+    .to("{{ep.ok}}");                                    // (6) success channel — never reached on failure</code></pre></div>
+      <ol>
+        <li><b>(1)</b> the route consumes orders from an in-memory <span class="ep">direct:</span> channel.</li>
+        <li><b>(2)</b> <span class="ep">errorHandler(deadLetterChannel(...))</span> scopes the policy to this whole route — it catches <em>any</em> exception. For per-type handling you'd add <span class="ep">onException(...)</span> clauses; the most specific one wins and this stays the fallback.</li>
+        <li><b>(3)(4)</b> the redelivery policy: <span class="ep">maximumRedeliveries(3)</span> gives up after three retries, <span class="ep">redeliveryDelay(20)</span> waits 20&nbsp;ms between attempts (keeping the test sub-second).</li>
+        <li><b>(5)</b> <span class="ep">.bean("paymentBean", "charge")</span> is the fallible step; a declined card throws <span class="ep">PaymentDeclinedException</span> every call.</li>
+        <li><b>(6)</b> on success the exchange continues to <span class="ep">{{ep.ok}}</span>; on exhaustion it goes to <span class="ep">{{ep.dead}}</span>. Both are <span class="ep">{{ep.*}}</span> placeholders, so production points them at real channels while tests point them at mocks.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/19-dead-letter-channel spring-boot:run</code></pre></div>
+      <p>A demo feeder injects a good order and a declined order in alternation every 5s — watch the good ones log <span class="ep">paid OK</span>, and the declined ones make three retry attempts before landing on the <span class="ep">log:dead</span> endpoint with their <span class="ep">CamelRedeliveryExhausted</span> header showing. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>DeadLetterChannelTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void failingOrderLandsInDeadLetterAfterRetries() throws Exception {
+    ok.expectedMessageCount(0);
+    dead.expectedMessageCount(1);
+
+    template.sendBody("direct:orders", new Order("A-1002", 500, true));
+
+    MockEndpoint.assertIsSatisfied(context);
+    // 1 original attempt + 3 redeliveries (maximumRedeliveries(3)) = 4 calls into the gateway.
+    assertEquals(4, paymentBean.getAttempts());
+}</code></pre></div>
+      <p>In the test profile the terminal endpoints resolve to <span class="ep">mock:ok</span> and <span class="ep">mock:dead</span>, so the test asserts exactly where each order ends up — no broker required. The declined order reaches <span class="ep">mock:dead</span> with <b>zero</b> on <span class="ep">mock:ok</span>, and the bean counter proves the retries happened: <b>four</b> gateway calls (1 original + 3 redeliveries). The sibling test sends a good order and asserts one call and zero dead letters. Run just the tests:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/19-dead-letter-channel test</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Add <span class="ep">.backOffMultiplier(2)</span> to the redelivery policy and watch the delay grow 20ms → 40ms → 80ms. Then add an <span class="ep">onException(PaymentDeclinedException.class)</span> clause with <span class="ep">maximumRedeliveries(0)</span> so declined cards go straight to dead, and assert <span class="ep">getAttempts()</span> is exactly 1.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>A Dead Letter Channel keeps a message that can't be delivered instead of dropping it — retry a bounded number of times, then divert.</li>
+        <li>A redelivery policy (<span class="ep">maximumRedeliveries</span> / <span class="ep">redeliveryDelay</span> / <span class="ep">backOffMultiplier</span>) controls how hard, and how gently, to retry.</li>
+        <li>Because the channel handles the exhausted exchange, the caller never sees the exception — the message is safe on the dead endpoint, not lost.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="18-point-to-point-and-pub-sub.html"><div class="dir">← Previous</div>18 · Point-to-Point &amp; Pub-Sub</a>
+      <a class="next" href="20-idempotent-consumer.html"><div class="dir">Next →</div>20 · Idempotent Consumer</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

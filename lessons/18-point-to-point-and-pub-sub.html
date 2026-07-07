@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Point-to-Point vs Pub-Sub — queues &amp; topics | EIP Hands-On</title>
+  <meta name="description" content="Learn Point-to-Point vs Publish-Subscribe in Apache Camel: a JMS queue delivers to one consumer while a topic broadcasts to every subscriber, on a real broker.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/18-point-to-point-and-pub-sub.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Point-to-Point vs Publish-Subscribe (Queues & Topics)">
+  <meta property="og:description" content="A JMS queue delivers each message to one consumer; a topic broadcasts to every subscriber — with a runnable Camel route and a broker-backed test.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/18-point-to-point-and-pub-sub.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Point-to-Point vs Publish-Subscribe (Queues & Topics)">
+  <meta name="twitter:description" content="Queues deliver to one consumer; topics broadcast to every subscriber, with a runnable Camel route.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Point-to-Point vs Publish-Subscribe", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/18-point-to-point-and-pub-sub.html" } ] },
+      { "@type": "LearningResource", "name": "Point-to-Point vs Publish-Subscribe",
+        "description": "Choose the right channel shape in Apache Camel: a queue (Point-to-Point) delivers each message to exactly one consumer, while a topic (Publish-Subscribe) broadcasts a copy to every subscriber.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Point-to-Point Channel and Publish-Subscribe Channel (Enterprise Integration Patterns)",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
+      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/18-point-to-point-and-pub-sub">Module&nbsp;↗</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Transformation &amp; messaging › <span>18 · Point-to-Point vs Pub-Sub</span></p>
+    <h1>Point-to-Point vs Publish-Subscribe (Queues &amp; Topics) <span class="badge broker">broker</span></h1>
+    <p class="objective"><b>A queue delivers each message to exactly one consumer; a topic broadcasts a copy to every subscriber.</b> Pick the channel shape by asking: should this be handled once, or heard by everyone?</p>
+
+    <div class="prose">
+      <h2>The idea</h2>
+      <p>Two channels look the same from the sender's chair but behave very differently. A <b>Point-to-Point</b> channel — a <span class="ep">queue</span> — competes its consumers: each message is handed to exactly <em>one</em> of them, which is what you want for work that must happen once (ship this order). A <b>Publish-Subscribe</b> channel — a <span class="ep">topic</span> — fans out: <em>every</em> subscriber receives its own copy, which is what you want for events others react to independently (an order was placed). In Camel the DSL is identical; only the endpoint prefix changes — <span class="ep">jms:queue:</span> versus <span class="ep">jms:topic:</span>.</p>
+
+      <h2>The scenario</h2>
+      <p>ShopFlow moves its critical hand-offs onto a real broker (<b>ActiveMQ Artemis</b>). Confirmed orders go to a <b>fulfillment queue</b> consumed by exactly one warehouse worker — you never want the same order shipped twice. Meanwhile an <b>order-placed</b> event goes to a <b>topic</b> that both the email service and the analytics service subscribe to; each gets its own copy and reacts on its own.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="direct:fulfillment goes through a queue to one warehouse worker; direct:order-events goes through a topic to both an email and an analytics subscriber.">
+          <div class="step"><span class="lbl">direct:fulfillment</span><span class="sub">confirmed order</span></div>
+          <div class="arrow">→</div>
+          <div class="step decision"><span class="lbl">jms:queue:fulfillment</span><span class="sub">Point-to-Point</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">warehouse worker</span><span class="sub">exactly ONE consumer</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">direct:order-events</span><span class="sub">order-placed event</span></div>
+          <div class="arrow">→</div>
+          <div class="step decision"><span class="lbl">jms:topic:order-events</span><span class="sub">Publish-Subscribe</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">→ email subscriber</span><span class="sub">gets a copy</span></div>
+          <div class="step"><span class="lbl">→ analytics subscriber</span><span class="sub">gets a copy</span></div>
+        </div>
+        <figcaption>queue → 1 consumer &nbsp;·&nbsp; topic → N subscribers</figcaption>
+      </figure>
+
+      <h2>The route</h2>
+      <div class="code"><div class="code-head"><span>MessagingRoutes.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>public void configure() {
+    // ----- Point-to-Point: a queue delivers to exactly ONE consumer -----
+    from("direct:fulfillment").routeId("send-to-queue")            // (1) producer side
+        .to("jms:queue:fulfillment");                              // (2) send to a QUEUE
+
+    from("jms:queue:fulfillment").routeId("warehouse-worker")      // (3) the one consumer
+        .to("{{ep.fulfillment-out}}");
+
+    // ----- Publish-Subscribe: a topic broadcasts to EVERY subscriber -----
+    from("direct:order-events").routeId("publish-events")          // (4) publisher side
+        .to("jms:topic:order-events");                             // (5) send to a TOPIC
+
+    from("jms:topic:order-events").routeId("email-subscriber")     // (6) subscriber A
+        .to("{{ep.email-out}}");
+
+    from("jms:topic:order-events").routeId("analytics-subscriber") // (7) subscriber B
+        .to("{{ep.analytics-out}}");
+}</code></pre></div>
+      <ol>
+        <li><b>(1)(2)</b> the producer drops the message on a <span class="ep">jms:queue:</span> — a Point-to-Point channel.</li>
+        <li><b>(3)</b> one route consumes that queue. Even if you scaled it to many workers, the broker hands each message to only one of them.</li>
+        <li><b>(4)(5)</b> the publisher sends the event to a <span class="ep">jms:topic:</span> — a Publish-Subscribe channel.</li>
+        <li><b>(6)(7)</b> two independent routes subscribe to the same topic; each receives its own copy. The sinks are <span class="ep">{{ep.*}}</span> placeholders so production logs them while tests point them at mocks.</li>
+      </ol>
+
+      <h2>Run it</h2>
+      <p>This module talks to a real broker, so start one first, then run the app.</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>make up                                                   # starts Artemis (see infra/)
+./mvnw -pl patterns/18-point-to-point-and-pub-sub spring-boot:run</code></pre></div>
+      <p>Send an order to <span class="ep">direct:fulfillment</span> and only the warehouse worker logs it; send one to <span class="ep">direct:order-events</span> and both the email and analytics subscribers log a copy.</p>
+
+      <h2>The test is the spec</h2>
+      <div class="code"><div class="code-head"><span>PointToPointAndPubSubIT.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Test
+void queueDeliversToTheSingleConsumer() throws Exception {
+    fulfillment.expectedMessageCount(1);
+    template.sendBody("direct:fulfillment", "order-42");
+    fulfillment.assertIsSatisfied();
+}
+
+@Test
+void topicBroadcastsToEverySubscriber() throws Exception {
+    email.expectedMessageCount(1);
+    analytics.expectedMessageCount(1);
+    template.sendBody("direct:order-events", "order-placed-42");
+    MockEndpoint.assertIsSatisfied(context);
+}</code></pre></div>
+      <p>These are <b>integration tests</b> (named <span class="ep">*IT</span>): they spin up a real ActiveMQ Artemis broker with Testcontainers, so they run under <span class="ep">verify</span> (Docker required) and are skipped by a plain <span class="ep">test</span>. The queue test proves exactly one consumer fires; the topic test proves <em>both</em> subscribers get a copy.</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/18-point-to-point-and-pub-sub verify     # runs the broker IT (needs Docker)</code></pre></div>
+
+      <div class="note"><span class="tag">Try it</span> Add a third subscriber to the topic — a <span class="ep">fraud-check</span> route — and assert it also receives a copy. Then change <span class="ep">jms:topic:order-events</span> to <span class="ep">jms:queue:...</span> and watch only one of the three consumers win.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>A queue (Point-to-Point) hands each message to exactly one consumer; a topic (Publish-Subscribe) gives every subscriber its own copy.</li>
+        <li>In Camel the only difference is the endpoint prefix — <span class="ep">jms:queue:</span> vs <span class="ep">jms:topic:</span> — the rest of the DSL is identical.</li>
+        <li>Broker-backed behavior needs a real broker: <span class="ep">make up</span> before <span class="ep">spring-boot:run</span>, and Testcontainers under <span class="ep">verify</span> for the integration tests.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="16-content-enricher.html"><div class="dir">← Previous</div>16 · Content Enricher</a>
+      <a class="next" href="19-dead-letter-channel.html"><div class="dir">Next →</div>19 · Dead Letter Channel</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
+    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
+    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
+    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
+  </div>
+  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
+</footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

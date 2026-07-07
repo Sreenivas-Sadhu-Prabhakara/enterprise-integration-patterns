@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Enterprise Integration Patterns, Hands-On">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B1520"/>
+      <stop offset="1" stop-color="#0E1B29"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1050" cy="70" r="360" fill="#E9A23B" opacity="0.08"/>
+  <circle cx="120" cy="40" r="300" fill="#3FD0C9" opacity="0.07"/>
+  <text x="80" y="150" fill="#E9A23B" font-family="monospace" font-size="26" letter-spacing="6">HANDS-ON · APACHE CAMEL · SPRING BOOT</text>
+  <text x="76" y="270" fill="#E6EDF3" font-family="system-ui, sans-serif" font-size="92" font-weight="800">Enterprise</text>
+  <text x="76" y="370" fill="#E6EDF3" font-family="system-ui, sans-serif" font-size="92" font-weight="800">Integration <tspan fill="#E9A23B">Patterns</tspan></text>
+  <text x="80" y="450" fill="#9FB2C2" font-family="system-ui, sans-serif" font-size="34">One runnable, tested module per pattern. 21 lessons.</text>
+  <!-- mini route -->
+  <g transform="translate(80,520)">
+    <rect x="0" y="0" width="150" height="46" rx="8" fill="#16273A" stroke="#23384B"/>
+    <text x="16" y="29" fill="#3FD0C9" font-family="monospace" font-size="18">direct:orders</text>
+    <path d="M150 23 H250" stroke="#23384B" stroke-width="3"/>
+    <rect x="250" y="0" width="110" height="46" rx="8" fill="#16273A" stroke="#E9A23B"/>
+    <text x="272" y="29" fill="#E9A23B" font-family="monospace" font-size="18">choice()</text>
+    <path d="M360 23 H460" stroke="#23384B" stroke-width="3"/>
+    <circle cx="205" cy="23" r="9" fill="#3FD0C9"/>
+    <rect x="460" y="0" width="180" height="46" rx="8" fill="#16273A" stroke="#23384B"/>
+    <text x="476" y="29" fill="#3FD0C9" font-family="monospace" font-size="18">jms:queue:eu</text>
+  </g>
+</svg>
