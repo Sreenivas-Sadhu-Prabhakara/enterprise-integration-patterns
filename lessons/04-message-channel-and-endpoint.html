@@ -14,11 +14,11 @@
   <meta property="og:title" content="Message Channel &amp; Endpoint: direct: vs seda:">
   <meta property="og:description" content="Connect two routes over an in-memory channel and feel synchronous direct: versus asynchronous seda:, with a runnable Camel route and test.">
   <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/04-message-channel-and-endpoint.html">
-  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Message Channel &amp; Endpoint: direct: vs seda:">
   <meta name="twitter:description" content="Feel synchronous direct: versus asynchronous seda: with two joined Apache Camel routes.">
-  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.png">
   <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="../site.webmanifest">
   <link rel="stylesheet" href="../assets/css/style.css">
@@ -56,6 +56,7 @@
     <p class="objective"><b>Connect two routes over an in-memory Message Channel</b> and feel the difference between a <em>synchronous</em> channel and an <em>asynchronous</em> one — the choice between <span class="ep">direct:</span> and <span class="ep">seda:</span>.</p>
 
     <div class="prose">
+      <div class="note"><span class="tag">Reality check</span> <span class="ep">direct:</span> and <span class="ep">seda:</span> are in-memory — fast to learn on, but they vanish when the JVM stops and never touch the network. Production routes cross a broker with real latency, failures, and duplicates. You'll make them robust with <a href="07-error-handling-basics.html">error handling</a> (07), <a href="17-run-the-brokers.html">real brokers</a> (17), the <a href="19-dead-letter-channel.html">Dead Letter Channel</a> (19), and the <a href="20-idempotent-consumer.html">Idempotent Consumer</a> (20).</div>
       <h2>The idea</h2>
       <p>A <b>Message Channel</b> is a named endpoint URI that carries messages between routes. A <b>Message Endpoint</b> is where a route attaches to that channel: <span class="ep">from(...)</span> is a <em>consumer</em> endpoint, <span class="ep">to(...)</span> is a <em>producer</em> endpoint. The channel's <em>scheme</em> decides its behaviour. <span class="ep">direct:</span> is <b>synchronous</b> — the message is handled on the <em>caller's own thread</em>, and any exception propagates straight back. <span class="ep">seda:</span> is <b>asynchronous</b> — <span class="ep">to("seda:work")</span> drops the message on an in-memory queue and returns immediately; a background consumer thread picks it up later. That queue is memory-only — <em>not durable</em>: if the JVM stops, anything still queued is lost.</p>
 
@@ -169,7 +170,7 @@ void processingRunsOnADifferentThreadThanTheCaller() throws Exception {
   </article>
 </main>
 
-<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div><div><h4>Reference</h4><a href="../cheatsheet.html">Cheat sheet</a><a href="../camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="../request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="../dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div><div><h4>Reference</h4><a href="../cheatsheet.html">Cheat sheet</a><a href="../camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="../request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="../dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/blob/main/ROADMAP.md">Roadmap &#8599;</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/releases">Releases &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
 <script src="../assets/js/nav.js"></script>
 </body>
 </html>

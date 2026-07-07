@@ -5,20 +5,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Enterprise Integration Patterns with Apache Camel &amp; Spring Boot</title>
-  <meta name="description" content="A beginner-friendly guide to Enterprise Integration Patterns with Apache Camel and Spring Boot — what they are, why Camel, and 21 runnable lessons.">
+  <meta name="description" content="A beginner-friendly guide to Enterprise Integration Patterns with Apache Camel and Spring Boot — what they are, why Camel, and 22 hands-on lessons.">
   <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/guide.html">
   <meta name="robots" content="index, follow, max-image-preview:large">
   <meta name="theme-color" content="#0B1520">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="EIP Hands-On">
   <meta property="og:title" content="Enterprise Integration Patterns with Apache Camel &amp; Spring Boot">
-  <meta property="og:description" content="A complete, beginner-friendly guide — what the patterns are, why Camel, and 21 runnable, tested lessons.">
+  <meta property="og:description" content="A complete, beginner-friendly guide — what the patterns are, why Camel, and 22 hands-on, tested lessons.">
   <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/guide.html">
-  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Enterprise Integration Patterns with Apache Camel &amp; Spring Boot">
-  <meta name="twitter:description" content="A complete beginner guide + 21 runnable, tested lessons.">
-  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:description" content="A complete beginner guide + 22 hands-on, tested lessons.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.png">
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="site.webmanifest">
   <link rel="stylesheet" href="assets/css/style.css">
@@ -34,7 +34,7 @@
         "inLanguage": "en", "author": { "@type": "Organization", "name": "EIP Hands-On" },
         "mainEntityOfPage": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/guide.html" },
       { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On",
-        "description": "21 runnable, tested modules teaching Enterprise Integration Patterns with Apache Camel on Spring Boot.",
+        "description": "22 hands-on lessons teaching Enterprise Integration Patterns with Apache Camel on Spring Boot.",
         "provider": { "@type": "Organization", "name": "EIP Hands-On" }, "isAccessibleForFree": true, "inLanguage": "en" },
       { "@type": "FAQPage", "mainEntity": [
         { "@type": "Question", "name": "What are Enterprise Integration Patterns?", "acceptedAnswer": { "@type": "Answer", "text": "Enterprise Integration Patterns (EIPs) are named, reusable solutions to the recurring problems of connecting systems with messaging — routing, transforming, splitting, aggregating, and reliably delivering messages. They were catalogued by Gregor Hohpe and Bobby Woolf." } },
@@ -75,7 +75,7 @@
       <p>On <b>Spring Boot</b>, a single starter auto-configures a <span class="ep">CamelContext</span> and discovers your routes, so you can run a pattern in minutes with no ceremony. This course uses the supported <b>Red Hat build of Apache Camel for Spring Boot</b> (Camel 4.18, Spring Boot 3.5, JDK 17/21), with a plain Apache Camel fallback so it works anywhere. New to comparing options? See <a href="camel-vs-spring-integration.html">Apache Camel vs Spring Integration</a>.</p>
 
       <h2 id="families">The pattern families</h2>
-      <p>The 21 lessons build one running example — <b>ShopFlow</b>, an online store's order pipeline — grouped into families:</p>
+      <p>The 22 lessons build one running example — <b>ShopFlow</b>, an online store's order pipeline — grouped into families. <b>18</b> are dedicated Enterprise Integration Patterns; the rest are a Spring Boot on-ramp, testing, error handling, broker setup, and a capstone (see the <a href="eip-map.html">EIP map</a>):</p>
 
       <h3>Foundations</h3>
       <p>Start here if Spring Boot or Camel is new. <a href="lessons/01-spring-boot-primer.html">Spring Boot in 30 minutes</a> · <a href="lessons/02-wire-camel.html">Wire Camel</a> · <a href="lessons/03-your-first-route.html">Your first route</a> · <a href="lessons/04-message-channel-and-endpoint.html">Channels &amp; endpoints (direct vs seda)</a> · <a href="lessons/05-message-and-exchange.html">The message &amp; exchange</a> · <a href="lessons/06-testing-camel-routes.html">Testing routes</a> · <a href="lessons/07-error-handling-basics.html">Error handling basics</a>.</p>
@@ -84,10 +84,14 @@
       <p>Get messages to the right place. <a href="lessons/08-pipes-and-filters.html">Pipes &amp; Filters</a> · <a href="lessons/09-message-filter.html">Message Filter</a> · <a href="lessons/10-content-based-router.html">Content-Based Router</a> · <a href="lessons/11-splitter.html">Splitter</a> · <a href="lessons/12-aggregator.html">Aggregator</a> · <a href="lessons/13-recipient-list.html">Recipient List</a> · <a href="lessons/14-wire-tap.html">Wire Tap</a>.</p>
 
       <h3>Transformation &amp; messaging channels</h3>
-      <p>Change shape and cross real brokers. <a href="lessons/15-message-translator.html">Message Translator (JSON ↔ POJO)</a> · <a href="lessons/16-content-enricher.html">Content Enricher</a> · <a href="lessons/18-point-to-point-and-pub-sub.html">Point-to-Point vs Publish-Subscribe</a>.</p>
+      <p>Change shape and cross real brokers. <a href="lessons/15-message-translator.html">Message Translator (JSON ↔ POJO)</a> · <a href="lessons/16-content-enricher.html">Content Enricher</a> · <a href="lessons/17-run-the-brokers.html">Run the brokers</a> · <a href="lessons/18-point-to-point-and-pub-sub.html">Point-to-Point vs Publish-Subscribe</a>.</p>
 
       <h3>Reliability &amp; the capstone</h3>
       <p>Don't lose messages, and don't do work twice. <a href="lessons/19-dead-letter-channel.html">Dead Letter Channel &amp; Redelivery</a> · <a href="lessons/20-idempotent-consumer.html">Idempotent Consumer</a> · <a href="lessons/21-request-reply-and-event-message.html">Request-Reply vs Event Message</a> · <a href="lessons/99-capstone-order-pipeline.html">the end-to-end capstone</a> that composes eight patterns.</p>
+
+      <h2 id="realism">A note on realism</h2>
+      <p>Two honest caveats. First, real integration is rarely one tidy pipeline — production systems are many independent routes and services, each with its own bounded context. <b>ShopFlow</b> is a teaching spine that lets each pattern build on the last; it is not a claim that everything belongs in one app. The <a href="lessons/99-capstone-order-pipeline.html">capstone</a> composes the patterns so you can see them together, but in the real world you would split them across services.</p>
+      <p>Second, the early lessons use in-memory channels (<span class="ep">direct:</span>, <span class="ep">seda:</span>) so you can focus on the pattern, not the plumbing. Real endpoints cross a network — latency, dropped connections, duplicate deliveries. That simplification is deliberate and temporary: you make routes robust with <a href="lessons/07-error-handling-basics.html">error handling</a> (lesson 07, early), <a href="lessons/17-run-the-brokers.html">real brokers</a> (17), the <a href="lessons/19-dead-letter-channel.html">Dead Letter Channel</a> (19), and the <a href="lessons/20-idempotent-consumer.html">Idempotent Consumer</a> (20). Every lesson's <b>Production version</b> section spells out the real-world shape.</p>
 
       <h2 id="how">How the course works</h2>
       <ul>
@@ -106,12 +110,12 @@ cd camel-eip-course
       <h2 id="more">Go deeper</h2>
       <p>Focused comparisons and references: <a href="camel-vs-spring-integration.html">Camel vs Spring Integration</a> · <a href="request-reply-vs-event-message.html">Request-Reply vs Event Message</a> · <a href="dead-letter-channel-vs-retry.html">Dead Letter Channel vs Retry</a> · the <a href="eip-map.html">Full EIP Map</a> · the one-page <a href="cheatsheet.html">Camel cheat sheet</a> · the <a href="glossary.html">glossary</a>.</p>
 
-      <p style="margin-top:26px"><a class="btn btn-primary" href="curriculum.html">Browse the 21 lessons →</a> &nbsp; <a class="btn btn-ghost" href="setup.html">Set up your machine</a></p>
+      <p style="margin-top:26px"><a class="btn btn-primary" href="curriculum.html">Browse the 22 lessons →</a> &nbsp; <a class="btn btn-ghost" href="setup.html">Set up your machine</a></p>
     </div>
   </article>
 </main>
 
-<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="guide.html">Guide</a><a href="curriculum.html">Curriculum</a><a href="eip-map.html">EIP Map</a><a href="setup.html">Setup</a><a href="glossary.html">Glossary</a><a href="about.html">About</a></div><div><h4>Reference</h4><a href="cheatsheet.html">Cheat sheet</a><a href="camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="guide.html">Guide</a><a href="curriculum.html">Curriculum</a><a href="eip-map.html">EIP Map</a><a href="setup.html">Setup</a><a href="glossary.html">Glossary</a><a href="about.html">About</a></div><div><h4>Reference</h4><a href="cheatsheet.html">Cheat sheet</a><a href="camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/blob/main/ROADMAP.md">Roadmap &#8599;</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/releases">Releases &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
 <script src="assets/js/nav.js"></script>
 </body>
 </html>

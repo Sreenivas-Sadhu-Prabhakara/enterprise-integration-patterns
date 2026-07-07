@@ -14,11 +14,11 @@
   <meta property="og:title" content="Your First Route — from(), to(), routeId()">
   <meta property="og:description" content="The anatomy of every Camel route: a from() consumer, a to() producer, and why every route needs a routeId() — runnable, with a test.">
   <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/03-your-first-route.html">
-  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Your First Route — from(), to(), routeId()">
   <meta name="twitter:description" content="Read any Camel route left-to-right: from() consumer → steps → to() producer, always with a routeId().">
-  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.png">
   <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="../site.webmanifest">
   <link rel="stylesheet" href="../assets/css/style.css">
@@ -56,6 +56,7 @@
     <p class="objective"><b>Read any Camel route left-to-right, top-to-bottom.</b> It begins at one <span class="ep">from(...)</span> consumer, flows through zero or more steps, and ends at a <span class="ep">to(...)</span> producer. That single shape underlies every other pattern in this course.</p>
 
     <div class="prose">
+      <div class="note"><span class="tag">Reality check</span> These <span class="ep">direct:</span>/<span class="ep">seda:</span> hops run in memory so you can focus on the pattern. Real endpoints cross a network — latency, dropped connections, duplicate deliveries. You'll make routes robust with <a href="07-error-handling-basics.html">error handling</a> (lesson 07), <a href="17-run-the-brokers.html">real brokers</a> (17), and the <a href="19-dead-letter-channel.html">Dead Letter Channel</a> (19).</div>
       <h2>The idea</h2>
       <p>A Camel route is a small pipeline with a fixed grammar: <span class="ep">from( consumer ) … steps … to( producer )</span>. The <span class="ep">from(...)</span> names the channel messages <em>enter</em> on; each step in between transforms, logs, or decides; the <span class="ep">to(...)</span> names where the message <em>goes next</em>. Master this one shape and every later pattern — routers, splitters, filters — is just more steps in the middle. And there is one habit that pays off forever: <b>always give a route a <span class="ep">routeId(...)</span></b>. Without it Camel auto-generates ids like <span class="ep">route1</span>, <span class="ep">route2</span> from start-up order — numbers that drift the moment you add or reorder a route, quietly breaking your traces, metrics, and tests.</p>
 
@@ -146,7 +147,7 @@ void oneOrderInOneMessageOut() throws Exception {
   </article>
 </main>
 
-<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div><div><h4>Reference</h4><a href="../cheatsheet.html">Cheat sheet</a><a href="../camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="../request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="../dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div><div><h4>Reference</h4><a href="../cheatsheet.html">Cheat sheet</a><a href="../camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="../request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="../dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/blob/main/ROADMAP.md">Roadmap &#8599;</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/releases">Releases &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
 <script src="../assets/js/nav.js"></script>
 </body>
 </html>

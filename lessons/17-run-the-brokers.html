@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Run the Brokers — Artemis &amp; Kafka in Docker | EIP Hands-On</title>
+  <meta name="description" content="Stand up real message brokers for the Apache Camel messaging lessons: ActiveMQ Artemis and Kafka via Docker Compose, why a broker matters, and a no-Docker fallback.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/17-run-the-brokers.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Run the Brokers — Artemis &amp; Kafka in Docker">
+  <meta property="og:description" content="Stand up real message brokers for the messaging lessons, and see why crossing a broker changes everything.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/17-run-the-brokers.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Run the Brokers — Artemis &amp; Kafka in Docker">
+  <meta name="twitter:description" content="Real brokers for the Camel messaging lessons, via Docker Compose.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.png">
+  <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../site.webmanifest">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Curriculum", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/curriculum.html" },
+        { "@type": "ListItem", "position": 3, "name": "Run the Brokers", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/lessons/17-run-the-brokers.html" } ] },
+      { "@type": "LearningResource", "name": "Run the Brokers",
+        "description": "Stand up ActiveMQ Artemis and Kafka locally with Docker Compose for the Apache Camel messaging lessons.",
+        "learningResourceType": "lesson", "educationalLevel": "beginner", "inLanguage": "en",
+        "teaches": "Running message brokers for integration",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links"><a href="../index.html">Home</a><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a><a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;&#8599;</a></div>
+  </nav>
+</header>
+
+<main id="main">
+  <article class="lesson wrap">
+    <p class="breadcrumb"><a href="../curriculum.html">Curriculum</a> › Messaging › <span>17 · Run the Brokers</span></p>
+    <h1>Run the Brokers</h1>
+    <p class="objective"><b>Stand up real message brokers</b> — ActiveMQ Artemis and Kafka — so the next lessons talk to real infrastructure instead of in-memory channels. This is the moment the course crosses from logic into operations.</p>
+
+    <div class="prose">
+      <div class="note"><span class="tag">Reality check</span> Lessons 1–16 used in-memory channels (<span class="ep">direct:</span>, <span class="ep">seda:</span>) so you could focus on the <em>pattern</em>. Real endpoints cross a network: they add latency, they drop connections, and they can deliver the same message twice. A broker is where those realities begin — and it's exactly why <a href="19-dead-letter-channel.html">Dead Letter Channels</a> and <a href="20-idempotent-consumer.html">Idempotent Consumers</a> exist.</div>
+
+      <h2>Why a broker at all?</h2>
+      <p>An in-memory <span class="ep">seda:</span> queue vanishes when the JVM stops. A <b>broker</b> is a separate process that holds messages durably and lets independent services hand work off without knowing about each other. That buys you three things you can't get in-memory: <b>durability</b> (messages survive a crash), <b>decoupling</b> (producer and consumer run and scale separately), and <b>cross-process delivery</b> (real services, real network).</p>
+      <ul>
+        <li><b>ActiveMQ Artemis</b> — a JMS broker; the home of the <a href="18-point-to-point-and-pub-sub.html">queue (point-to-point) and topic (publish-subscribe)</a> lessons.</li>
+        <li><b>Apache Kafka</b> — a distributed log for high-throughput event streaming; the same pub/sub idea with consumer groups.</li>
+      </ul>
+
+      <h2>The scenario</h2>
+      <p>ShopFlow is ready to move its critical hand-offs off in-memory channels and onto a broker — confirmed orders to a durable fulfillment <b>queue</b>, order events to a <b>topic</b>. First, bring the infrastructure up.</p>
+
+      <h2>Start the brokers</h2>
+      <p>The code repo ships an <span class="ep">infra/docker-compose.yml</span> with Artemis, Kafka, and a Kafka UI. One command brings them up:</p>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>make up
+# equivalently:
+docker compose -f infra/docker-compose.yml up -d</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span></div><pre><code>[+] Running 4/4
+ ✔ Container eip-artemis    Healthy
+ ✔ Container eip-kafka      Started
+ ✔ Container eip-kafka-ui   Started
+ ✔ Network camel-eip_default Created</code></pre></div>
+
+      <h2>What's now running</h2>
+      <div style="overflow-x:auto"><table class="data">
+        <thead><tr><th>Service</th><th>Port</th><th>Use</th></tr></thead>
+        <tbody>
+          <tr><td>ActiveMQ Artemis (JMS)</td><td class="mono">61616</td><td><span class="ep">spring.artemis.broker-url=tcp://localhost:61616</span></td></tr>
+          <tr><td>Artemis web console</td><td class="mono">8161</td><td>http://localhost:8161 (camel / camel)</td></tr>
+          <tr><td>Kafka</td><td class="mono">9092</td><td><span class="ep">camel.component.kafka.brokers=localhost:9092</span></td></tr>
+          <tr><td>Kafka UI</td><td class="mono">8080</td><td>http://localhost:8080 — watch messages land</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2>Verify &amp; tear down</h2>
+      <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>docker compose -f infra/docker-compose.yml ps    # both brokers up?
+make logs                                         # tail broker logs
+make down                                          # stop and remove everything</code></pre></div>
+
+      <div class="note"><span class="tag">No Docker?</span> You don't need this running to pass the tests. The messaging lesson's tests use <b>Testcontainers</b>, which start a throwaway broker automatically under <span class="ep">./mvnw verify</span>. <span class="ep">make up</span> is only for running the app by hand and watching messages flow in the consoles.</div>
+
+      <h2>What you learned</h2>
+      <ul>
+        <li>A broker is a separate, durable process — the opposite of an in-memory <span class="ep">seda:</span> queue.</li>
+        <li><span class="ep">make up</span> starts Artemis + Kafka + a Kafka UI from <span class="ep">infra/docker-compose.yml</span>.</li>
+        <li>Crossing a broker introduces the real-world failures the reliability lessons exist to handle.</li>
+      </ul>
+    </div>
+
+    <nav class="pager" aria-label="Lesson">
+      <a href="16-content-enricher.html"><div class="dir">← Previous</div>16 · Content Enricher</a>
+      <a class="next" href="18-point-to-point-and-pub-sub.html"><div class="dir">Next →</div>18 · Point-to-Point &amp; Pub-Sub</a>
+    </nav>
+  </article>
+</main>
+
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div><div><h4>Reference</h4><a href="../cheatsheet.html">Cheat sheet</a><a href="../camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="../request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="../dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/blob/main/ROADMAP.md">Roadmap &#8599;</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/releases">Releases &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
+<script src="../assets/js/nav.js"></script>
+</body>
+</html>

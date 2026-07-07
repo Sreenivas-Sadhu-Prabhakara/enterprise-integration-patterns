@@ -1,6 +1,12 @@
 <!-- SPDX-License-Identifier: CC-BY-4.0 -->
 # Enterprise Integration Patterns — courseware site
 
+[![Live site](https://img.shields.io/badge/live-site-3FD0C9.svg)](https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/)
+[![Release](https://img.shields.io/github/v/release/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns?sort=semver&color=E9A23B)](https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns/releases)
+[![Lighthouse SEO 100](https://img.shields.io/badge/Lighthouse%20SEO-100-3FD0C9.svg)](https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/)
+[![Content: CC-BY-4.0](https://img.shields.io/badge/content-CC--BY--4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
+[![Roadmap](https://img.shields.io/badge/roadmap-planned-6f8496.svg)](ROADMAP.md)
+
 The static courseware website for **[EIP Hands-On](https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course)** —
 a beginner-first course teaching Enterprise Integration Patterns with Apache Camel and Spring Boot.
 
