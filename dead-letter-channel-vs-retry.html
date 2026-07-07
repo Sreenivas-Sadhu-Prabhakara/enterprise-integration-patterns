@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dead Letter Channel vs Retry | EIP Hands-On</title>
+  <meta name="description" content="Dead Letter Channel vs retry/redelivery in Apache Camel: transient-failure recovery versus parking poison messages, and why they are complementary.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/dead-letter-channel-vs-retry.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Dead Letter Channel vs Retry (Redelivery)">
+  <meta property="og:description" content="Transient-failure retry vs parking poison messages in Apache Camel — why they are complementary, and how to configure both.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/dead-letter-channel-vs-retry.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Dead Letter Channel vs Retry (Redelivery)">
+  <meta name="twitter:description" content="Retry recovers transient failures; a Dead Letter Channel parks what retry can't fix. How to configure both in Apache Camel.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Dead Letter Channel vs Retry (Redelivery)", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/dead-letter-channel-vs-retry.html" } ] },
+      { "@type": "Article",
+        "headline": "Dead Letter Channel vs Retry (Redelivery)",
+        "description": "Dead Letter Channel vs retry/redelivery in Apache Camel: transient-failure recovery versus parking poison messages — why they are complementary and how to configure both.",
+        "inLanguage": "en",
+        "mainEntityOfPage": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/dead-letter-channel-vs-retry.html",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On", "url": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links"><a href="index.html">Home</a><a href="guide.html">Guide</a><a href="curriculum.html">Curriculum</a><a href="eip-map.html">EIP Map</a><a href="setup.html">Setup</a><a href="glossary.html">Glossary</a><a href="about.html">About</a><a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;&#8599;</a></div>
+  </nav>
+</header>
+
+<main id="main">
+  <section class="lesson wrap">
+    <p class="kicker">Reliability · Patterns compared</p>
+    <h1>Dead Letter Channel vs Retry (Redelivery)</h1>
+    <div class="prose">
+      <p class="lead muted">A recurring question when a route can fail: <em>do I retry, or do I dead-letter?</em> The honest answer is <b>both</b> — they solve different halves of the same problem and are designed to be used together, not chosen between.</p>
+
+      <h2>The short answer</h2>
+      <p><b>Retry / redelivery</b> is optimistic: it assumes the failure is <em>transient</em> — a blip, a timeout, a momentarily overloaded dependency — and re-attempts the <em>same</em> message a few times, ideally with growing delay, on the bet that it will succeed on a later try. A <b>Dead Letter Channel (DLC)</b> is pessimistic: it is where a message goes <em>after</em> retries are exhausted — or immediately, for a message that is provably unrecoverable — so it is parked for inspection and replay instead of being silently lost or crashing the route. Retry is the recovery attempt; the DLC is the safety net under it.</p>
+
+      <div class="grid cols-2">
+        <div class="card"><p class="num">RETRY · REDELIVERY</p><h3>Recover from transient failures</h3><p>Re-attempt the same exchange a bounded number of times with backoff. Configured with a redelivery policy: <span class="ep">maximumRedeliveries</span>, <span class="ep">redeliveryDelay</span>, <span class="ep">backOffMultiplier</span> — on <span class="ep">errorHandler(...)</span> or a specific <span class="ep">onException(...)</span>.</p></div>
+        <div class="card"><p class="num">DEAD LETTER CHANNEL</p><h3>Park what retry can't fix</h3><p>Route the give-up (or poison) message to a dedicated endpoint for humans or a replay job. Configured with <span class="ep">errorHandler(deadLetterChannel(uri))</span> — the redelivery policy lives on the same handler.</p></div>
+      </div>
+
+      <h2>Side by side</h2>
+      <div style="overflow-x:auto">
+      <table class="data">
+        <tr>
+          <th>&nbsp;</th>
+          <th>Purpose</th>
+          <th>When it triggers</th>
+          <th>What it protects against</th>
+          <th>Key Camel config</th>
+          <th>Risk</th>
+        </tr>
+        <tr>
+          <td><b>Retry<br>(Redelivery)</b></td>
+          <td>Re-attempt the same message, betting the failure is temporary.</td>
+          <td>On every exception, up to <span class="ep">maximumRedeliveries</span>, until it succeeds or is exhausted.</td>
+          <td>Transient faults: timeouts, connection resets, brief 5xx, deadlocks, a dependency mid-restart.</td>
+          <td class="mono">maximumRedeliveries(n) · redeliveryDelay(ms) · backOffMultiplier(x)</td>
+          <td>Re-runs side effects (double charge, double email); a poison message loops and wastes retries.</td>
+        </tr>
+        <tr>
+          <td><b>Dead Letter<br>Channel</b></td>
+          <td>Preserve a message that cannot be delivered for later inspection or replay.</td>
+          <td>After redeliveries are exhausted — or immediately when a policy says "don't retry this".</td>
+          <td>Message loss and route stalls: nothing is dropped, nothing blocks the queue behind it.</td>
+          <td class="mono">errorHandler(deadLetterChannel("{{ep.dead}}"))</td>
+          <td>An unwatched DLQ silently fills up; without replay tooling, parked messages are effectively lost.</td>
+        </tr>
+      </table>
+      </div>
+
+      <h2>Transient vs. permanent — retry only what can succeed</h2>
+      <p>Retrying is only useful when a later attempt might behave differently. A <b>transient</b> error (network timeout, HTTP 503, a locked row) fits that bill. A <b>permanent</b> error does not: a malformed payload, a validation failure, or a hard <span class="ep">400 Bad Request</span> will fail identically on every attempt. Retrying it just delays the inevitable while hammering the dependency and holding up the exchange. Detect permanent failures and send them <em>straight</em> to an <b>Invalid Message Channel</b> (a DLC used specifically for bad data) with <span class="ep">maximumRedeliveries(0)</span>:</p>
+      <div class="code"><div class="code-head"><span>OrderRoute.java — gate permanent errors</span><button class="copy-btn" type="button">copy</button></div><pre><code>// Permanent, unrecoverable failure: never retry — divert immediately.
+onException(ValidationException.class)
+    .maximumRedeliveries(0)                 // (1) zero retries: a bad payload never becomes good
+    .handled(true)                          //     don't rethrow to the caller
+    .log("Invalid order ${body.orderId}: ${exception.message} -&gt; invalid channel")
+    .to("{{ep.invalid}}");                  // (2) Invalid Message Channel (a purpose-built DLC)
+
+// Transient failure: the default policy below still retries these a few times.
+onException(java.net.ConnectException.class)
+    .maximumRedeliveries(4)                 // (3) a flaky socket is worth re-attempting
+    .redeliveryDelay(200)
+    .backOffMultiplier(2);                  //     200ms -&gt; 400ms -&gt; 800ms -&gt; 1600ms</code></pre></div>
+      <ol>
+        <li><b>(1)</b> the most specific <span class="ep">onException</span> wins, so a <span class="ep">ValidationException</span> skips retries entirely — <span class="ep">maximumRedeliveries(0)</span> means one attempt, then divert.</li>
+        <li><b>(2)</b> a bad message lands on its own channel where it can be inspected and corrected, never mixed in with transient failures.</li>
+        <li><b>(3)</b> a <span class="ep">ConnectException</span> is genuinely transient, so <em>it</em> gets the retry treatment — same route, opposite policy.</li>
+      </ol>
+
+      <h2>Use them together</h2>
+      <p>The everyday configuration is a single pipeline: retry N times for the transient case, and when the message still won't go through, fall through to the Dead Letter Channel. One <span class="ep">errorHandler</span> expresses both — the redelivery policy and the dead-letter endpoint live on the same handler.</p>
+
+      <figure>
+        <div class="flow" role="img" aria-label="direct:orders calls the charge bean; a transient throw is retried up to three times with growing backoff, a success reaches ep.ok, an exhausted message reaches ep.dead, and a permanent validation error goes straight to ep.invalid.">
+          <div class="step"><span class="lbl">direct:orders</span><span class="sub">an order arrives</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="lbl">bean: charge</span><span class="sub">may throw</span></div>
+          <div class="arrow">→</div>
+          <div class="step decision"><span class="lbl">transient or permanent?</span><span class="sub">the error handler decides</span></div>
+          <div class="step"><span class="lbl">→ ep.ok</span><span class="sub">no throw · paid</span></div>
+          <div class="step"><span class="lbl">↺ retry ×3</span><span class="sub">transient · backoff</span></div>
+          <div class="step"><span class="lbl">→ ep.dead</span><span class="sub">retries exhausted</span></div>
+          <div class="step"><span class="lbl">→ ep.invalid</span><span class="sub">permanent · 0 retries</span></div>
+        </div>
+        <figcaption>orders → charge → ep.ok · or on throw: retry ×3 → exhausted → ep.dead ‖ permanent → ep.invalid</figcaption>
+      </figure>
+
+      <div class="code"><div class="code-head"><span>OrderRoute.java — retry, then dead-letter</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:orders")
+    .routeId("orders")
+    // One handler carries BOTH: the redelivery policy AND the give-up destination.
+    .errorHandler(deadLetterChannel("{{ep.dead}}")   // (1) where an exhausted message is parked
+        .maximumRedeliveries(3)                      // (2) retry up to 3 times for transient faults
+        .redeliveryDelay(200)                        // (3) 200 ms before the first retry
+        .backOffMultiplier(2)                        // (4) grow the wait: 200 -&gt; 400 -&gt; 800 ms
+        .retryAttemptedLogLevel(LoggingLevel.WARN))  //     log each retry so a flaky dep is visible
+    // Retries re-run this step, so guard side effects with an Idempotent Consumer.
+    .idempotentConsumer(
+            header("orderId"),                       // (5) stable business key = "same message"
+            MemoryIdempotentRepository.memoryIdempotentRepository())
+        .bean("paymentGateway", "charge")            // (6) the fallible call
+        .to("{{ep.ok}}")                             //     success channel
+    .end();</code></pre></div>
+      <ol>
+        <li><b>(1)</b> <span class="ep">deadLetterChannel("{{ep.dead}}")</span> is the terminal safety net — reached only when retries can't save the message. Because the DLC <em>handles</em> the exhausted exchange, the caller never sees the exception.</li>
+        <li><b>(2)&ndash;(4)</b> the redelivery policy is the retry half: three attempts, starting 200&nbsp;ms apart and doubling, so a struggling dependency gets breathing room instead of a thundering herd.</li>
+        <li><b>(5)&ndash;(6)</b> because a retry re-executes <span class="ep">charge</span>, an <span class="ep">idempotentConsumer</span> keyed on <span class="ep">orderId</span> makes the charge happen at most once even across redeliveries and replays.</li>
+      </ol>
+
+      <h2>Design considerations</h2>
+      <ul>
+        <li><b>Retries duplicate side effects.</b> A re-attempted <span class="ep">charge</span>, <span class="ep">send email</span>, or <span class="ep">insert</span> can happen more than once. Pair retry with an <a href="lessons/20-idempotent-consumer.html">Idempotent Consumer</a> (or make the downstream call naturally idempotent) so at-least-once delivery doesn't become at-least-twice execution.</li>
+        <li><b>Don't retry poison messages.</b> A message that fails deterministically will burn every redelivery and then dead-letter anyway. Classify it as permanent (see above) and route it straight to the Invalid Message Channel with <span class="ep">maximumRedeliveries(0)</span>.</li>
+        <li><b>Use backoff.</b> Fixed, immediate retries hammer an already-failing dependency. <span class="ep">backOffMultiplier</span> (and optionally a <span class="ep">maximumRedeliveryDelay</span> ceiling) backs off gracefully and gives the dependency time to recover.</li>
+        <li><b>Alert on DLQ depth.</b> A Dead Letter Channel only helps if someone looks. Monitor the depth of the dead-letter endpoint and page when it grows — a rising DLQ is your earliest signal that a dependency is broken.</li>
+        <li><b>Provide replay tooling.</b> Parked messages need a path back in. Ship a way to inspect, fix, and re-inject dead letters (a route, a script, or a broker console) so the DLC is a pause, not a graveyard.</li>
+      </ul>
+
+      <div class="note"><span class="tag">Pair them</span> The single most common production mistake is enabling retries without an <a href="lessons/20-idempotent-consumer.html">Idempotent Consumer</a>. If a step has side effects, add de-duplication <em>before</em> you add redeliveries — otherwise every retry risks a double charge.</div>
+
+      <h2>Verdict</h2>
+      <p>These are not alternatives. <b>Retry / redelivery is the recovery mechanism; the Dead Letter Channel is the terminal safety net.</b> Configure a bounded, backing-off redelivery policy for transient failures, let the DLC catch whatever survives it, gate permanent errors to <span class="ep">maximumRedeliveries(0)</span> so they skip retries and go straight to an Invalid Message Channel, and make any step with side effects idempotent. Do all four and a failing message is never lost, never duplicated, and never silently stuck.</p>
+
+      <div class="grid cols-3" style="margin-top:26px">
+        <div class="card"><p class="num">LESSON 19</p><h3>Dead Letter Channel</h3><p>Retry, then park the exhausted exchange — a runnable Camel module with tests.</p><p style="margin-top:12px"><a class="btn btn-ghost" href="lessons/19-dead-letter-channel.html">Open lesson →</a></p></div>
+        <div class="card"><p class="num">LESSON 20</p><h3>Idempotent Consumer</h3><p>De-duplicate so at-least-once delivery doesn't double-run your side effects.</p><p style="margin-top:12px"><a class="btn btn-ghost" href="lessons/20-idempotent-consumer.html">Open lesson →</a></p></div>
+        <div class="card"><p class="num">LESSON 07</p><h3>Error Handling Basics</h3><p>The default handler, <span class="ep">onException</span>, and <span class="ep">doTry/doCatch</span> — where retry and DLC come from.</p><p style="margin-top:12px"><a class="btn btn-ghost" href="lessons/07-error-handling-basics.html">Open lesson →</a></p></div>
+      </div>
+
+      <p style="margin-top:26px"><a class="btn btn-primary" href="guide.html">Read the reliability guide →</a> &nbsp; <a class="btn btn-ghost" href="eip-map.html">See the EIP map</a></p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="guide.html">Guide</a><a href="curriculum.html">Curriculum</a><a href="eip-map.html">EIP Map</a><a href="setup.html">Setup</a><a href="glossary.html">Glossary</a><a href="about.html">About</a></div><div><h4>Reference</h4><a href="cheatsheet.html">Cheat sheet</a><a href="camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
+<script src="assets/js/nav.js"></script>
+</body>
+</html>

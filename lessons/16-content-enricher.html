@@ -45,10 +45,7 @@
   <nav class="nav wrap" aria-label="Primary">
     <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
     <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
-    <div class="nav-links" id="nav-links">
-      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
-      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/16-content-enricher">Module&nbsp;↗</a>
-    </div>
+    <div class="nav-links" id="nav-links"><a href="../index.html">Home</a><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a><a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;&#8599;</a></div>
   </nav>
 </header>
 
@@ -101,6 +98,11 @@ from("direct:customer-lookup")                                 // (4) the enrich
 
       <h2>Run it</h2>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/16-content-enricher spring-boot:run</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>INFO  enricher        : Enriching order A-1001 for customer C-2
+INFO  customer-lookup : Looking up customer C-2
+INFO  enricher        : Enriched order: Order{orderId='A-1001', customerId='C-2', customerName='Bruno Lang', customerEmail='bruno@example.com', customerTier='SILVER'}
+INFO  out             : Exchange[Body: Order{orderId='A-1001', customerId='C-2', customerName='Bruno Lang', customerEmail='bruno@example.com', customerTier='SILVER'}]
+# ...then A-1002/C-3 (Chika Obi / BRONZE), then A-1003/C-9 lands with customerName='null' — a lookup miss that isn't dropped</code></pre></div>
       <p>A demo feeder injects a rotating sample order every 3s — watch each land on the log carrying <span class="ep">customerName</span> and <span class="ep">customerTier</span>, and watch <span class="ep">C-9</span> flow through with empty customer fields (a lookup miss that isn't dropped). Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
 
       <h2>The test is the spec</h2>
@@ -122,6 +124,12 @@ void orderIsEnrichedWithCustomerData() throws Exception {
 }</code></pre></div>
       <p>The order goes in carrying only an id; it comes out of <span class="ep">mock:out</span> carrying the customer's name, email and tier — proof the message was augmented from a second source with no broker and no HTTP. Sibling tests feed a <em>different</em> id (<span class="ep">C-2</span>) to show the lookup really keys off <span class="ep">customerId</span>, and an <em>unknown</em> id (<span class="ep">C-9</span>) that still reaches <span class="ep">mock:out</span> with its customer fields null. Run just the tests:</p>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/16-content-enricher test</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>[INFO] Running com.example.eip.enricher.ContentEnricherTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.245 s
+[INFO]
+[INFO] Results:
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS</code></pre></div>
 
       <div class="note"><span class="tag">Try it</span> Add a customer <span class="ep">C-3</span> with tier <span class="ep">PLATINUM</span> to the directory, feed an order for it, and write the assertion that proves the enricher fills in the new tier on <span class="ep">mock:out</span>.</div>
 
@@ -131,6 +139,20 @@ void orderIsEnrichedWithCustomerData() throws Exception {
         <li><span class="ep">enrich()</span> drives a resource route on demand and an <span class="ep">AggregationStrategy</span> merges the reply back onto the original body — <span class="ep">pollEnrich()</span> is the consume-flavoured sibling.</li>
         <li>A lookup miss doesn't drop the message: the order flows on with empty fields, so enrichment is additive, not a gate.</li>
       </ul>
+
+      <h2>Related patterns</h2>
+      <ul>
+        <li><a href="15-message-translator.html">15 · Message Translator</a> — its sibling: a Translator <em>reshapes</em> the data already in the message, while a Content Enricher <em>fetches missing</em> data and adds it.</li>
+        <li><a href="12-aggregator.html">12 · Aggregator</a> — <span class="ep">enrich()</span> merges the resource reply with the exact same <span class="ep">AggregationStrategy</span> interface the Aggregator uses to combine messages.</li>
+        <li><a href="14-wire-tap.html">14 · Wire Tap</a> — a useful contrast: a Wire Tap also sends to a second route but discards its reply, whereas <span class="ep">enrich()</span> merges that reply back into the main flow.</li>
+        <li><a href="../eip-map.html">Full EIP Map</a> — see where Content Enricher sits among the message-transformation patterns.</li>
+      </ul>
+
+      <h2>Common mistake</h2>
+      <p>The number-one <span class="ep">enrich()</span> trap is omitting the <span class="ep">AggregationStrategy</span>: with no strategy, Camel replaces the whole body with the resource route's reply, so your original order vanishes and only the <span class="ep">Customer</span> survives. Always pass a strategy (here <span class="ep">MergeStrategy</span>) that returns the <em>original</em> exchange with the fetched fields copied on — not the reply. A subtler slip is assuming the strategy only runs on a hit: it also runs on a miss with a <span class="ep">null</span> reply, so guard for null in <span class="ep">aggregate()</span> instead of dereferencing it and throwing an NPE that would drop the order.</p>
+
+      <h2>Production version</h2>
+      <p>In the teaching module the resource is an in-memory <span class="ep">Map</span> behind <span class="ep">direct:customer-lookup</span> and <span class="ep">{{ep.out}}</span> logs to the console. In production the lookup route calls a real system — <span class="ep">http:</span>/a REST client, JDBC, or a <span class="ep">jms:</span>/<span class="ep">kafka:</span> request — and <span class="ep">{{ep.out}}</span> points at the real downstream channel, with every URI and credential externalized to config. Because <span class="ep">enrich()</span> is a synchronous call to that external source, wrap it in a timeout and a circuit breaker, and cache hot lookups (Caffeine/Redis) so you don't hit the customer service on every message. Decide the failure policy deliberately: route lookup errors to a <a href="19-dead-letter-channel.html">Dead Letter Channel</a> rather than letting a slow or down dependency stall the pipeline, and add metrics/tracing on the enrich step so you can see lookup latency and miss rates.</p>
     </div>
 
     <nav class="pager" aria-label="Lesson">
@@ -140,15 +162,7 @@ void orderIsEnrichedWithCustomerData() throws Exception {
   </article>
 </main>
 
-<footer class="site-footer">
-  <div class="wrap cols">
-    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
-    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
-    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
-    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
-  </div>
-  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
-</footer>
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div><div><h4>Reference</h4><a href="../cheatsheet.html">Cheat sheet</a><a href="../camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="../request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="../dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
 <script src="../assets/js/nav.js"></script>
 </body>
 </html>

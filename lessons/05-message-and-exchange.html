@@ -45,10 +45,7 @@
   <nav class="nav wrap" aria-label="Primary">
     <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
     <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
-    <div class="nav-links" id="nav-links">
-      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
-      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/05-message-and-exchange">Module&nbsp;↗</a>
-    </div>
+    <div class="nav-links" id="nav-links"><a href="../index.html">Home</a><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a><a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;&#8599;</a></div>
   </nav>
 </header>
 
@@ -116,6 +113,11 @@
 
       <h2>Run it</h2>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/05-message-and-exchange spring-boot:run</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>INFO  exchange : IN  exchange E-1-1: the Message body (a Map) = {orderId=A-1001, country=DE, amount=101}
+INFO  exchange : OUT headers (Processor):   orderId=A-1001, country=DE
+INFO  exchange : OUT header  (setHeader):   amount=101
+INFO  out      : Exchange[Body: {orderId=A-1001, country=DE, amount=101}, Headers: {amount=101, country=DE, orderId=A-1001}]
+# ...then A-1002 / US / 102, A-1003 / FR / 103, ... one every 3s</code></pre></div>
       <p>A demo feeder injects a rotating sample <span class="ep">Map</span> order every 3s. Because <span class="ep">ep.out</span> is a <span class="ep">log:</span> endpoint showing headers, you'll see each message land with <span class="ep">orderId</span>, <span class="ep">country</span>, and <span class="ep">amount</span> populated — proof the metadata now rides with the message. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
 
       <h2>The test is the spec</h2>
@@ -138,6 +140,12 @@ void copiesOrderIdAndCountryIntoHeaders() throws Exception {
 }</code></pre></div>
       <p>In the test profile <span class="ep">ep.out</span> resolves to <span class="ep">mock:out</span>, so the test sends a <span class="ep">Map</span> order and asserts the message on the mock carries the exact <span class="ep">orderId</span>, <span class="ep">country</span>, and <span class="ep">amount</span> headers — derived from each message, not hardcoded. Run just the tests:</p>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/05-message-and-exchange test</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>[INFO] Running com.example.eip.exchange.MessageAndExchangeTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.589 s
+[INFO]
+[INFO] Results:
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS</code></pre></div>
 
       <div class="note"><span class="tag">Try it</span> Add a declarative header <span class="ep">highValue</span> with <span class="ep">setHeader("highValue", simple("${body[amount]} &gt; 1000"))</span>, then write the assertion that proves it is <span class="ep">true</span> for the A-2001 order and <span class="ep">false</span> for one under €1000.</div>
 
@@ -147,6 +155,20 @@ void copiesOrderIdAndCountryIntoHeaders() throws Exception {
         <li>Headers carry control metadata that rides alongside the body, so later EIPs route, filter, and aggregate without re-parsing the payload.</li>
         <li>You can set a header two ways — imperatively in a <span class="ep">Processor</span> or declaratively with <span class="ep">setHeader(...)</span> + the Simple language — same result, different trade-offs.</li>
       </ul>
+
+      <h2>Related patterns</h2>
+      <ul>
+        <li><a href="04-message-channel-and-endpoint.html">04 · Channel &amp; Endpoint</a> — the endpoints this Message travels between; the <span class="ep">{{ep.out}}</span> placeholder resolves to one.</li>
+        <li><a href="10-content-based-router.html">10 · Content-Based Router</a> — reads the very headers you lift here to pick a destination, without re-parsing the body.</li>
+        <li><a href="15-message-translator.html">15 · Message Translator</a> — the other half of the Message: it rewrites the <em>body</em>, where here you enriched the <em>headers</em>.</li>
+        <li><a href="16-content-enricher.html">16 · Content Enricher</a> — adds data the message didn't arrive with, extending the same body-plus-headers model.</li>
+      </ul>
+
+      <h2>Common mistake</h2>
+      <p>Treating <span class="ep">headers</span> as durable, exchange-wide state. Headers live on the <em>Message</em>, so they can be dropped or renamed when the message crosses a transport boundary — a <span class="ep">jms:</span> hop truncates and mangles header names that don't fit JMS rules, and <span class="ep">http:</span> only forwards what you tell it to. For a value that must survive for the whole exchange regardless of endpoint hops, use an <span class="ep">exchange property</span> (<span class="ep">setProperty(...)</span> / <span class="ep">getProperty(...)</span>) instead of a header. Related: always read the current message with <span class="ep">exchange.getMessage()</span>, not the older <span class="ep">getIn()</span>, or you may act on a stale copy after a step has replaced it.</p>
+
+      <h2>Production version</h2>
+      <p>Here <span class="ep">{{ep.out}}</span> resolves to a <span class="ep">log:</span> endpoint and the body is a hand-built <span class="ep">java.util.Map</span>; in production it would point at a real channel — <span class="ep">jms:</span>, <span class="ep">kafka:</span>, or <span class="ep">http:</span> — and the payload would typically arrive as JSON you unmarshal into a typed POJO before touching it. Keep <span class="ep">ep.out</span> externalized in config (as it already is) so the same route runs against a mock in tests and a broker in prod. Decide deliberately which fields become transport headers: JMS and Kafka need explicit header mapping/serialization, so promote only the small set of routing keys (<span class="ep">orderId</span>, <span class="ep">country</span>, <span class="ep">amount</span>) and keep everything else in the body or in exchange properties. Add observability — Camel's Micrometer metrics and the named <span class="ep">routeId("exchange")</span> make each hop traceable — and validate the incoming body so a malformed order fails fast instead of setting garbage headers downstream.</p>
     </div>
 
     <nav class="pager" aria-label="Lesson">
@@ -156,15 +178,7 @@ void copiesOrderIdAndCountryIntoHeaders() throws Exception {
   </article>
 </main>
 
-<footer class="site-footer">
-  <div class="wrap cols">
-    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
-    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
-    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
-    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
-  </div>
-  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
-</footer>
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div><div><h4>Reference</h4><a href="../cheatsheet.html">Cheat sheet</a><a href="../camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="../request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="../dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
 <script src="../assets/js/nav.js"></script>
 </body>
 </html>

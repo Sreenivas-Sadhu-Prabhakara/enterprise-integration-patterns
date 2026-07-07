@@ -45,10 +45,7 @@
   <nav class="nav wrap" aria-label="Primary">
     <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
     <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
-    <div class="nav-links" id="nav-links">
-      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
-      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/10-content-based-router">Module&nbsp;↗</a>
-    </div>
+    <div class="nav-links" id="nav-links"><a href="../index.html">Home</a><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a><a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;&#8599;</a></div>
   </nav>
 </header>
 
@@ -99,6 +96,12 @@
 
       <h2>Run it</h2>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/10-content-based-router spring-boot:run</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>INFO --- content-based-router : Routing order A-1001 bound for DE
+INFO --- eu                   : Exchange[Body: Order{orderId='A-1001', country='DE', totalAmount=101}]
+INFO --- content-based-router : Routing order A-1002 bound for US
+INFO --- international         : Exchange[Body: Order{orderId='A-1002', country='US', totalAmount=102}]
+INFO --- content-based-router : Routing order A-1005 bound for IN
+INFO --- domestic             : Exchange[Body: Order{orderId='A-1005', country='IN', totalAmount=105}]</code></pre></div>
       <p>A demo feeder sends orders from rotating countries every few seconds — watch each land on the matching branch in the log. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
 
       <h2>The test is the spec</h2>
@@ -114,6 +117,13 @@ void domesticOrderGoesDomestic() throws Exception {
 }</code></pre></div>
       <p>In the test profile the branch endpoints resolve to <span class="ep">mock:domestic</span>, <span class="ep">mock:eu</span>, <span class="ep">mock:international</span>, so each test asserts exactly one branch fires and the others stay empty. Run just the tests:</p>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/10-content-based-router test</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>[INFO] Running com.example.eip.cbr.ContentBasedRouterTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.94 s -- in com.example.eip.cbr.ContentBasedRouterTest
+[INFO]
+[INFO] Results:
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] BUILD SUCCESS</code></pre></div>
 
       <div class="note"><span class="tag">Try it</span> Add a fourth branch for orders over €10,000 to a <span class="ep">mock:highvalue</span> endpoint, and write the assertion that proves it.</div>
 
@@ -125,6 +135,22 @@ void domesticOrderGoesDomestic() throws Exception {
       </ul>
     </div>
 
+    <div class="prose">
+      <h2>Related patterns</h2>
+      <ul>
+        <li><a href="09-message-filter.html">09 · Message Filter</a> — the one-branch special case: a router that keeps matches and silently drops the rest.</li>
+        <li><a href="13-recipient-list.html">13 · Recipient List</a> — when a message should go to <em>several</em> channels, not exactly one.</li>
+        <li><a href="11-splitter.html">11 · Splitter</a> — when the branching is over the items <em>inside</em> one message rather than the message as a whole.</li>
+        <li><a href="../guide.html">The EIP guide</a> — see where the Content-Based Router sits among the routing patterns.</li>
+      </ul>
+
+      <h2>Common mistake</h2>
+      <p>Leaving out <span class="ep">otherwise()</span>. A <span class="ep">choice()</span> with only <span class="ep">when()</span> branches has no home for messages that match nothing — Camel does not error, it just lets the exchange fall through the block and continue (or finish) with nothing delivered, so those orders silently disappear. Always terminate the router with an <span class="ep">otherwise()</span> that routes the remainder somewhere explicit — even if that "somewhere" is a dead-letter or an alert channel. Remember too that <span class="ep">when()</span> branches are evaluated top-to-bottom and the <b>first</b> match wins, so order your predicates from most specific to most general.</p>
+
+      <h2>Production version</h2>
+      <p>In this lesson the branch targets resolve to in-memory <span class="ep">log:</span> endpoints (and to <span class="ep">mock:</span> in the tests) via the <span class="ep">{{ep.*}}</span> placeholders. In production you would externalize those same placeholders to durable transports — for example <span class="ep">jms:queue:eu-fulfilment</span>, <span class="ep">kafka:orders.domestic</span>, or an <span class="ep">http:</span> call to an international 3PL — so each branch survives restarts and can be consumed by an independent, separately scaled service. Keep the routing predicates simple and data-driven (country codes belong in config or a lookup, not hardcoded regexes that a rules change forces you to redeploy), and add observability: the <span class="ep">routeId("content-based-router")</span> already gives every branch a name for metrics and tracing, so wire it to Micrometer/OpenTelemetry and alert on the <span class="ep">otherwise()</span> rate to catch orders arriving with unexpected countries.</p>
+    </div>
+
     <nav class="pager" aria-label="Lesson">
       <a href="09-message-filter.html"><div class="dir">← Previous</div>09 · Message Filter</a>
       <a class="next" href="11-splitter.html"><div class="dir">Next →</div>11 · Splitter</a>
@@ -132,15 +158,7 @@ void domesticOrderGoesDomestic() throws Exception {
   </article>
 </main>
 
-<footer class="site-footer">
-  <div class="wrap cols">
-    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
-    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
-    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
-    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
-  </div>
-  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
-</footer>
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div><div><h4>Reference</h4><a href="../cheatsheet.html">Cheat sheet</a><a href="../camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="../request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="../dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
 <script src="../assets/js/nav.js"></script>
 </body>
 </html>

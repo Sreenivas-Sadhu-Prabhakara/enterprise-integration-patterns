@@ -45,10 +45,7 @@
   <nav class="nav wrap" aria-label="Primary">
     <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
     <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
-    <div class="nav-links" id="nav-links">
-      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
-      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/19-dead-letter-channel">Module&nbsp;↗</a>
-    </div>
+    <div class="nav-links" id="nav-links"><a href="../index.html">Home</a><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a><a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;&#8599;</a></div>
   </nav>
 </header>
 
@@ -99,6 +96,11 @@
 
       <h2>Run it</h2>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/19-dead-letter-channel spring-boot:run</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>INFO --- dlq  : Charging order A-1001 (amount 101)
+INFO --- dlq  : Order A-1001 paid OK
+INFO --- paid : Exchange[Body: Order{orderId='A-1001', amount=101, failPayment=false}]
+INFO --- dlq  : Charging order A-1002 (amount 102)
+WARN --- dead : Exchange[Headers: {CamelRedeliveryExhausted=true, CamelRedeliveryCounter=3}, Body: Order{orderId='A-1002', amount=102, failPayment=true}]</code></pre></div>
       <p>A demo feeder injects a good order and a declined order in alternation every 5s — watch the good ones log <span class="ep">paid OK</span>, and the declined ones make three retry attempts before landing on the <span class="ep">log:dead</span> endpoint with their <span class="ep">CamelRedeliveryExhausted</span> header showing. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
 
       <h2>The test is the spec</h2>
@@ -115,6 +117,13 @@ void failingOrderLandsInDeadLetterAfterRetries() throws Exception {
 }</code></pre></div>
       <p>In the test profile the terminal endpoints resolve to <span class="ep">mock:ok</span> and <span class="ep">mock:dead</span>, so the test asserts exactly where each order ends up — no broker required. The declined order reaches <span class="ep">mock:dead</span> with <b>zero</b> on <span class="ep">mock:ok</span>, and the bean counter proves the retries happened: <b>four</b> gateway calls (1 original + 3 redeliveries). The sibling test sends a good order and asserts one call and zero dead letters. Run just the tests:</p>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/19-dead-letter-channel test</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>[INFO] Running com.example.eip.dlq.DeadLetterChannelTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.80 s -- in com.example.eip.dlq.DeadLetterChannelTest
+[INFO]
+[INFO] Results:
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] BUILD SUCCESS</code></pre></div>
 
       <div class="note"><span class="tag">Try it</span> Add <span class="ep">.backOffMultiplier(2)</span> to the redelivery policy and watch the delay grow 20ms → 40ms → 80ms. Then add an <span class="ep">onException(PaymentDeclinedException.class)</span> clause with <span class="ep">maximumRedeliveries(0)</span> so declined cards go straight to dead, and assert <span class="ep">getAttempts()</span> is exactly 1.</div>
 
@@ -126,6 +135,22 @@ void failingOrderLandsInDeadLetterAfterRetries() throws Exception {
       </ul>
     </div>
 
+    <div class="prose">
+      <h2>Related patterns</h2>
+      <ul>
+        <li><a href="07-error-handling-basics.html">07 · Error handling</a> — Camel's <em>default</em> error handler rethrows to the caller; the Dead Letter Channel and <span class="ep">onException</span> are the strategies that build on it.</li>
+        <li><a href="../dead-letter-channel-vs-retry.html">Dead Letter Channel vs Retry</a> — when a bounded retry alone is enough, and when you also need a place for the give-up message to land.</li>
+        <li><a href="20-idempotent-consumer.html">20 · Idempotent Consumer</a> — retries and replays can deliver the same message twice; pair dead-lettering with an idempotent key so a re-run is safe.</li>
+        <li><a href="../eip-map.html">The full EIP map</a> — see where the Dead Letter Channel sits among the messaging-reliability patterns.</li>
+      </ul>
+
+      <h2>Common mistake</h2>
+      <p>Pointing <span class="ep">deadLetterChannel(...)</span> at a <b>non-durable</b> endpoint — a <span class="ep">log:</span>, <span class="ep">mock:</span>, or in-memory <span class="ep">seda:</span> queue like this teaching module uses. If the give-up message only lands in memory, a restart loses exactly the message you were trying not to lose, defeating the whole pattern. Point the dead letter at something persistent (a JMS/Kafka queue or a table). A related trap: by default the exhausted exchange forwarded to the dead letter is the <em>current, half-processed</em> message, not the one that arrived — add <span class="ep">useOriginalMessage(true)</span> when you intend to replay from the original payload. And remember that <span class="ep">redeliveryDelay</span> blocks the consumer thread by default, so a long delay times many retries stalls throughput; use <span class="ep">asyncDelayedRedelivery()</span> or keep delays modest.</p>
+
+      <h2>Production version</h2>
+      <p>Here <span class="ep">{{ep.ok}}</span> and <span class="ep">{{ep.dead}}</span> resolve to in-memory <span class="ep">log:</span> endpoints (and to <span class="ep">mock:</span> in the tests). In production you would externalize those same placeholders to durable transports — <span class="ep">ep.ok</span> as a <span class="ep">jms:queue:fulfilment</span> or <span class="ep">direct:</span> hop into the next service, and <span class="ep">ep.dead</span> as a real dead-letter queue such as <span class="ep">jms:queue:orders.DLQ</span> or <span class="ep">kafka:orders.dead</span> that an operator can inspect and a replay job can drain. Externalize the redelivery knobs (<span class="ep">maximumRedeliveries</span>, <span class="ep">redeliveryDelay</span>, <span class="ep">backOffMultiplier</span>) to config rather than hardcoding them, and switch to <span class="ep">asyncDelayedRedelivery()</span> so retries don't pin threads. For observability, the <span class="ep">routeId("dlq")</span> already names the route for metrics and tracing — wire it to Micrometer/OpenTelemetry and alert on DLQ depth and the <span class="ep">CamelRedeliveryExhausted</span> rate, because a rising dead-letter count is your earliest signal that a downstream is genuinely broken.</p>
+    </div>
+
     <nav class="pager" aria-label="Lesson">
       <a href="18-point-to-point-and-pub-sub.html"><div class="dir">← Previous</div>18 · Point-to-Point &amp; Pub-Sub</a>
       <a class="next" href="20-idempotent-consumer.html"><div class="dir">Next →</div>20 · Idempotent Consumer</a>
@@ -133,15 +158,7 @@ void failingOrderLandsInDeadLetterAfterRetries() throws Exception {
   </article>
 </main>
 
-<footer class="site-footer">
-  <div class="wrap cols">
-    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
-    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
-    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
-    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
-  </div>
-  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
-</footer>
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div><div><h4>Reference</h4><a href="../cheatsheet.html">Cheat sheet</a><a href="../camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="../request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="../dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
 <script src="../assets/js/nav.js"></script>
 </body>
 </html>

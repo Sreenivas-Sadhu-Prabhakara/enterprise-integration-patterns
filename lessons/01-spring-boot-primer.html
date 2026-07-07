@@ -45,10 +45,7 @@
   <nav class="nav wrap" aria-label="Primary">
     <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
     <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
-    <div class="nav-links" id="nav-links">
-      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
-      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/01-spring-boot-primer">Module&nbsp;↗</a>
-    </div>
+    <div class="nav-links" id="nav-links"><a href="../index.html">Home</a><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a><a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;&#8599;</a></div>
   </nav>
 </header>
 
@@ -124,6 +121,11 @@ public class StartupRunner implements CommandLineRunner {
 
       <h2>Run it</h2>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/01-spring-boot-primer spring-boot:run</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>[INFO] --- spring-boot:run (default-cli) @ 01-spring-boot-primer ---
+2026-07-07T06:53:11.024  INFO 51823 --- [           main] c.example.eip.primer.Application         : Starting Application using Java 21
+2026-07-07T06:53:11.089  INFO 51823 --- [           main] c.example.eip.primer.Application         : No active profile set, falling back to 1 default profile: "default"
+2026-07-07T06:53:11.612  INFO 51823 --- [           main] c.example.eip.primer.Application         : Started Application in 0.78 seconds (process running for 1.02)
+2026-07-07T06:53:11.618  INFO 51823 --- [           main] c.e.eip.primer.StartupRunner             : Hello, World!</code></pre></div>
       <p>On startup you'll see a single line — <span class="ep">Hello, World!</span> — logged by <span class="ep">StartupRunner</span>. Override the config without editing files to watch it change:</p>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/01-spring-boot-primer spring-boot:run \
   -Dspring-boot.run.arguments="--app.greeting.prefix=Namaste --app.greeting.name=Sri"
@@ -141,6 +143,16 @@ void greetIncludesConfiguredPrefixAndName() {
 }</code></pre></div>
       <p><span class="ep">@SpringBootTest</span> boots the real <span class="ep">ApplicationContext</span> — the same container <span class="ep">main()</span> would build — proving component scan, bean creation, constructor injection and <span class="ep">@Value</span> binding all wire up. The test profile deliberately sets a <b>different</b> prefix (<span class="ep">Namaste</span>), and the assertion reads that injected property rather than hardcoding it, so it follows the config. Run just the tests:</p>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/01-spring-boot-primer test</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.example.eip.primer.GreetingServiceTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.6 s -- in com.example.eip.primer.GreetingServiceTest
+[INFO]
+[INFO] Results:
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] BUILD SUCCESS</code></pre></div>
 
       <div class="note"><span class="tag">Try it</span> Add an <span class="ep">app.greeting.punctuation</span> property, bind it in <span class="ep">GreetingService</span> with a second <span class="ep">@Value</span>, and write the assertion that proves <span class="ep">greet("Sri")</span> ends with it.</div>
 
@@ -150,6 +162,20 @@ void greetIncludesConfiguredPrefixAndName() {
         <li><b>Constructor dependency injection</b> hands a bean its collaborators; the field stays <span class="ep">final</span>, explicit, and easy to test.</li>
         <li><span class="ep">@Value</span> binds <span class="ep">application.yaml</span> properties at runtime — the same externalised-configuration idea Camel later uses for its endpoint placeholders.</li>
       </ul>
+
+      <h2>Related patterns</h2>
+      <ul>
+        <li><a href="02-wire-camel.html">02 · Wire Camel</a> — take this exact Spring Boot app and add the Camel engine; a <span class="ep">RouteBuilder</span> is just another scanned <span class="ep">@Component</span> bean.</li>
+        <li><a href="03-your-first-route.html">03 · Your First Route</a> — see the DI and config habits from here carry straight into your first route.</li>
+        <li><a href="04-message-channel-and-endpoint.html">04 · Channel &amp; Endpoint</a> — the <span class="ep">@Value</span> placeholder trick reappears as Camel's <span class="ep">{{...}}</span> endpoint URIs.</li>
+        <li><a href="../curriculum.html">Curriculum</a> — where this primer sits in the whole map of patterns.</li>
+      </ul>
+
+      <h2>Common mistake</h2>
+      <p>Leaving a bean out of the scanned package, or referencing a property that does not exist. Component scanning only reaches classes <b>at or below</b> the <span class="ep">@SpringBootApplication</span> package, so a <span class="ep">@Service</span> in a sibling package is silently never created. And an unresolved <span class="ep">@Value("${app.greeting.prefix}")</span> — a typo or a missing key — fails fast at startup with <span class="ep">Could not resolve placeholder 'app.greeting.prefix'</span>. Keep beans under the entry-point package, and give truly optional keys a default with the colon syntax, e.g. <span class="ep">${app.greeting.prefix:Hello}</span>.</p>
+
+      <h2>Production version</h2>
+      <p>In a real service you would not greet from a <span class="ep">CommandLineRunner</span> — the same scaffolding hosts Camel routes, REST controllers or message listeners, and does real work per request rather than once at boot. Configuration would not be literals in one <span class="ep">application.yaml</span>: per-environment values come from Spring profiles, environment variables, or a config server / Kubernetes <span class="ep">ConfigMap</span> + <span class="ep">Secret</span>, and grouped settings are bound with a typed <span class="ep">@ConfigurationProperties</span> class instead of scattered <span class="ep">@Value</span> fields. You would add <span class="ep">spring-boot-starter-actuator</span> for health and metrics endpoints, and run the process as a stateless, horizontally scalable container.</p>
     </div>
 
     <nav class="pager" aria-label="Lesson">
@@ -159,15 +185,7 @@ void greetIncludesConfiguredPrefixAndName() {
   </article>
 </main>
 
-<footer class="site-footer">
-  <div class="wrap cols">
-    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
-    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
-    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
-    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
-  </div>
-  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
-</footer>
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div><div><h4>Reference</h4><a href="../cheatsheet.html">Cheat sheet</a><a href="../camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="../request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="../dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
 <script src="../assets/js/nav.js"></script>
 </body>
 </html>

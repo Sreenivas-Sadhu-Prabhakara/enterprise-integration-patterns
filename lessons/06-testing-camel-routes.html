@@ -45,10 +45,7 @@
   <nav class="nav wrap" aria-label="Primary">
     <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
     <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
-    <div class="nav-links" id="nav-links">
-      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
-      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/06-testing-camel-routes">Module&nbsp;↗</a>
-    </div>
+    <div class="nav-links" id="nav-links"><a href="../index.html">Home</a><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a><a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;&#8599;</a></div>
   </nav>
 </header>
 
@@ -102,6 +99,11 @@ from("direct:echo")                                    // (5) an InOut (request/
 
       <h2>Run it</h2>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/06-testing-camel-routes spring-boot:run</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>INFO --- [           main] c.e.eip.testing.Application : Started Application in 2.41 seconds
+INFO --- [timer://demo]   sample                     : sample received: standard order #1
+INFO --- [timer://demo]   standard                   : Exchange[Body: standard order #1]
+INFO --- [timer://demo]   sample                     : sample received: VIP order #2
+INFO --- [timer://demo]   priority                   : Exchange[Body: VIP order #2]</code></pre></div>
       <p>A demo feeder injects a rotating body every 3s (<span class="ep">VIP order #N</span> / <span class="ep">standard order #N</span>), so you can watch the <span class="ep">sample</span> route log each message and land it on the matching branch. Behind a firewall? Add <span class="ep">-P upstream</span> for plain Apache Camel.</p>
 
       <h2>The test is the spec</h2>
@@ -133,6 +135,13 @@ void weaveAddLastLetsUsTapTheRouteOutput() throws Exception {
 }</code></pre></div>
       <p>Run just the tests — two classes, five methods, no broker:</p>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/06-testing-camel-routes test</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>[INFO] Running com.example.eip.testing.SampleRouteTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Running com.example.eip.testing.AdviceWithSampleRouteTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Results:
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS</code></pre></div>
 
       <div class="note"><span class="tag">Try it</span> Weave a <span class="ep">mock:tap</span> onto the <span class="ep">echo</span> route with <span class="ep">AdviceWith</span> and assert that <span class="ep">echo:hello</span> flows out — or add a <span class="ep">NotifyBuilder</span> that waits for one exchange from <span class="ep">direct:echo</span> to complete.</div>
 
@@ -142,6 +151,20 @@ void weaveAddLastLetsUsTapTheRouteOutput() throws Exception {
         <li><span class="ep">sendBody</span> drives InOnly routes, <span class="ep">requestBody</span> drives InOut and returns the reply, and <span class="ep">NotifyBuilder</span> waits for asynchronous completion.</li>
         <li><span class="ep">AdviceWith</span> rewrites a route at test time (<span class="ep">weaveAddLast().to("mock:tap")</span>) without touching production code — but it needs <span class="ep">@UseAdviceWith</span> and a manual <span class="ep">context.start()</span>.</li>
       </ul>
+
+      <h2>Related patterns</h2>
+      <ul>
+        <li><a href="05-message-and-exchange.html">05 · Message &amp; Exchange</a> — the InOnly vs InOut distinction behind <span class="ep">sendBody</span> (fire-and-forget) versus <span class="ep">requestBody</span> (request/reply) that these tests drive.</li>
+        <li><a href="10-content-based-router.html">10 · Content-Based Router</a> — the <span class="ep">choice()</span> the <span class="ep">sample</span> route uses; asserting which branch fired with a <span class="ep">MockEndpoint</span> is the canonical way to test it.</li>
+        <li><a href="04-message-channel-and-endpoint.html">04 · Channel &amp; Endpoint</a> — where <span class="ep">direct:</span>, <span class="ep">seda:</span>, and <span class="ep">mock:</span> come from; the property placeholders let production and test point the same route at different endpoints.</li>
+        <li><a href="21-request-reply-and-event-message.html">21 · Request-Reply vs Event</a> — the InOut request/reply the <span class="ep">echo</span> route models and that <span class="ep">requestBody</span> asserts on.</li>
+      </ul>
+
+      <h2>Common mistake</h2>
+      <p>With <span class="ep">@UseAdviceWith</span> the context does <b>not</b> auto-start, so forgetting the manual <span class="ep">context.start()</span> after <span class="ep">weaveAddLast()</span> means no route ever runs — <span class="ep">mock:tap</span> silently receives nothing and <span class="ep">assertIsSatisfied</span> fails (or blocks until timeout) with a message that looks nothing like the real problem. The matching trap in the auto-started class is state bleeding between methods: a shared <span class="ep">CamelContext</span> keeps mock expectations and recorded messages, so call <span class="ep">MockEndpoint.resetMocks(context)</span> in <span class="ep">@BeforeEach</span> and always set expectations <em>before</em> you <span class="ep">sendBody</span>, never after.</p>
+
+      <h2>Production version</h2>
+      <p>In a real system you don't write toy routes to exercise — you test the routes you already have, whose <span class="ep">{{ep.a}}</span>/<span class="ep">{{ep.b}}</span> placeholders resolve to <span class="ep">jms:</span>, <span class="ep">kafka:</span>, or <span class="ep">http:</span> endpoints in production and to <span class="ep">mock:</span> only in the test profile. Keep those URIs externalized in configuration so the swap is a property override, or use <span class="ep">AdviceWith</span>'s <span class="ep">replaceFromWith</span>/<span class="ep">mockEndpoints</span> to intercept live endpoints without editing route code. Asynchronous routes (<span class="ep">seda:</span>, <span class="ep">jms:</span>, <span class="ep">wireTap</span>) need a <span class="ep">NotifyBuilder</span> or a mock timeout because the producer call returns before processing finishes. Wire the fast in-memory tests into CI on every push, and reserve a Testcontainers-backed broker for the handful of true end-to-end tests run under <span class="ep">mvn verify</span>.</p>
     </div>
 
     <nav class="pager" aria-label="Lesson">
@@ -151,15 +174,7 @@ void weaveAddLastLetsUsTapTheRouteOutput() throws Exception {
   </article>
 </main>
 
-<footer class="site-footer">
-  <div class="wrap cols">
-    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
-    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
-    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
-    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
-  </div>
-  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
-</footer>
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div><div><h4>Reference</h4><a href="../cheatsheet.html">Cheat sheet</a><a href="../camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="../request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="../dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
 <script src="../assets/js/nav.js"></script>
 </body>
 </html>

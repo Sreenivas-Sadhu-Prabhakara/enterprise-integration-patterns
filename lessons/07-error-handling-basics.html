@@ -45,10 +45,7 @@
   <nav class="nav wrap" aria-label="Primary">
     <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
     <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
-    <div class="nav-links" id="nav-links">
-      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
-      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/07-error-handling-basics">Module&nbsp;↗</a>
-    </div>
+    <div class="nav-links" id="nav-links"><a href="../index.html">Home</a><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a><a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;&#8599;</a></div>
   </nav>
 </header>
 
@@ -102,6 +99,12 @@ from("direct:orders")                                    // (4) orders arrive on
 
       <h2>Run it</h2>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/07-error-handling-basics spring-boot:run</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>error-handling : Charging order A-1001
+error-handling : Payment OK for A-1001
+ok             : Exchange[Body: Order{orderId='A-1001', amount=101, failPayment=false}]
+error-handling : Charging order A-1002
+error-handling : Payment FAILED for A-1002: card declined for order A-1002 -&gt; error channel
+error          : Exchange[Body: Order{orderId='A-1002', amount=102, failPayment=true}]</code></pre></div>
       <p>A demo feeder injects an order every 3s, alternating good and failing. Watch <span class="ep">Charging order A-1001</span> land on <span class="ep">log:ok</span>, or <span class="ep">Payment FAILED … -&gt; error channel</span> land on <span class="ep">log:error</span> — proof that a thrown step no longer aborts the app. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
 
       <h2>The test is the spec</h2>
@@ -117,6 +120,11 @@ void failingOrderIsHandledToError() throws Exception {
 }</code></pre></div>
       <p>In the test profile every endpoint resolves to a <span class="ep">mock:</span> (see <span class="ep">src/test/resources/application.yaml</span>), so each test asserts exactly where a message ended up — no broker. Because the bean threw but <span class="ep">handled(true)</span> is set, <span class="ep">sendBody</span> returns normally: the failure lands on <span class="ep">mock:error</span> and <span class="ep">mock:ok</span> stays empty. Run just the tests:</p>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/07-error-handling-basics test</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>[INFO] Running com.example.eip.errors.ErrorHandlingTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.7 s
+[INFO] Results:
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS</code></pre></div>
 
       <div class="note"><span class="tag">Try it</span> Flip <span class="ep">handled(true)</span> to <span class="ep">handled(false)</span> in <span class="ep">ErrorHandlingRoute</span> and rerun the test — watch the exception get rethrown to the caller. Then drop <span class="ep">maximumRedeliveries</span> from 2 to 0 in <span class="ep">DeadLetterChannelRoute</span> and assert the failing charge still lands on <span class="ep">mock:dead</span>, now with no retries.</div>
 
@@ -126,6 +134,20 @@ void failingOrderIsHandledToError() throws Exception {
         <li><span class="ep">onException + handled(true)</span> catches, logs and diverts — and hides the failure from the caller; a dead-letter channel first retries then parks; <span class="ep">doTry/doCatch</span> handles inline like Java's <span class="ep">try/catch</span>.</li>
         <li>Property-placeholder endpoints (<span class="ep">log:</span> in the app, <span class="ep">mock:</span> in tests) make every branch assertable without a broker.</li>
       </ul>
+
+      <h2>Related patterns</h2>
+      <ul>
+        <li><a href="19-dead-letter-channel.html">19 · Dead Letter Channel</a> — the full pattern behind the <span class="ep">deadLetterChannel</span> shown here: retry, then park failed messages durably for later replay.</li>
+        <li><a href="20-idempotent-consumer.html">20 · Idempotent Consumer</a> — redelivery re-runs a step, so pair retries with idempotency to avoid double-charging the same order.</li>
+        <li><a href="06-testing-camel-routes.html">06 · Testing routes</a> — how the <span class="ep">mock:</span> assertions prove each error branch lands where it should, no broker required.</li>
+        <li><a href="../guide.html">The EIP guide</a> — where error handling fits among the other patterns.</li>
+      </ul>
+
+      <h2>Common mistake</h2>
+      <p>Diverting a failure with <span class="ep">onException(...).to("…error")</span> but forgetting <span class="ep">handled(true)</span>. The message does reach the error channel, yet Camel still marks the exchange failed and rethrows to the caller — so <span class="ep">sendBody</span> throws and nothing was actually "handled". Set <span class="ep">handled(true)</span> only when you have genuinely dealt with the failure; slapping it on everything silently swallows real bugs. Match the flag to intent, and keep <span class="ep">onException</span> scoped to the specific exception you expect rather than a blanket <span class="ep">Exception.class</span>.</p>
+
+      <h2>Production version</h2>
+      <p>The teaching routes read from <span class="ep">direct:</span> and write to <span class="ep">log:</span>; in production orders arrive on a real consumer (<span class="ep">jms:</span>, <span class="ep">kafka:</span> or <span class="ep">http:</span>) and the dead-letter target is a durable queue such as <span class="ep">jms:queue:orders.DLQ</span>, not a log line — so parked messages survive a restart and ops can inspect and replay them. Externalize the redelivery policy (<span class="ep">maximumRedeliveries</span>, an exponential <span class="ep">redeliveryDelay</span> with <span class="ep">backOffMultiplier</span>) into config instead of hard-coding it, and pair retries with an idempotent consumer so a redelivered charge is never applied twice. Add route-level metrics and tracing (Micrometer, exchange counters) and alert on DLQ depth, so a growing pile of dead letters pages someone rather than scrolling past in a console.</p>
     </div>
 
     <nav class="pager" aria-label="Lesson">
@@ -135,15 +157,7 @@ void failingOrderIsHandledToError() throws Exception {
   </article>
 </main>
 
-<footer class="site-footer">
-  <div class="wrap cols">
-    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
-    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
-    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
-    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
-  </div>
-  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
-</footer>
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div><div><h4>Reference</h4><a href="../cheatsheet.html">Cheat sheet</a><a href="../camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="../request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="../dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
 <script src="../assets/js/nav.js"></script>
 </body>
 </html>

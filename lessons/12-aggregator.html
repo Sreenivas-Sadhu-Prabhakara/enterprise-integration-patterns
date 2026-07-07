@@ -45,10 +45,7 @@
   <nav class="nav wrap" aria-label="Primary">
     <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
     <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
-    <div class="nav-links" id="nav-links">
-      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
-      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/12-aggregator">Module&nbsp;↗</a>
-    </div>
+    <div class="nav-links" id="nav-links"><a href="../index.html">Home</a><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a><a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;&#8599;</a></div>
   </nav>
 </header>
 
@@ -99,6 +96,12 @@
 
       <h2>Run it</h2>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/12-aggregator spring-boot:run</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>INFO  aggregator   : Item SKU-BOOK for order A-1001 (3 expected)
+INFO  aggregator   : Item SKU-PEN for order A-1001 (3 expected)
+INFO  aggregator   : Item SKU-BAG for order A-1001 (3 expected)
+INFO  aggregator   : Confirmation for order A-1001: 100 total
+INFO  confirmation : Exchange[Body: OrderConfirmation{orderId='A-1001', items=3, totalAmount=100}]
+# ...then A-1002, A-1003, ... one order (3 items → 1 confirmation) every 6s</code></pre></div>
       <p>A demo feeder emits a fresh order every 6 seconds, <b>splits</b> it into 3 line items, and feeds them to the Aggregator — so you see three <span class="ep">Item …</span> lines followed by one <span class="ep">Confirmation for order A-… : 100 total</span>, the whole splitter → aggregator round-trip. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
 
       <h2>The test is the spec</h2>
@@ -121,6 +124,12 @@ void threeLineItemsBecomeOneConfirmation() throws Exception {
 }</code></pre></div>
       <p>In the test profile <span class="ep">{{ep.out}}</span> resolves to <span class="ep">mock:out</span>, so the test asserts exactly one confirmation is emitted, then inspects it — the right order id, all 3 items, and the folded total of 100. Sibling tests prove the timeout releases a partial when an item goes missing and that two interleaved orders aggregate independently. Run just the tests:</p>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/12-aggregator test</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>[INFO] Running com.example.eip.aggregator.AggregatorTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.593 s
+[INFO]
+[INFO] Results:
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS</code></pre></div>
 
       <div class="note"><span class="tag">Try it</span> Send only 2 of a promised 3 items and shorten the rule to <span class="ep">completionTimeout(500)</span>, then write the assertion that proves the partial confirmation with 2 items still lands — and notice how long the test waits for it.</div>
 
@@ -130,6 +139,20 @@ void threeLineItemsBecomeOneConfirmation() throws Exception {
         <li>The <span class="ep">AggregationStrategy</span> holds the merge logic — <span class="ep">oldExchange</span> is null for the first message of a group, then each later message is folded into the running accumulator.</li>
         <li>A completion condition decides when to release: <span class="ep">completionSize</span> for the happy path, <span class="ep">completionTimeout</span> as a safety net so a missing message never blocks the group forever.</li>
       </ul>
+
+      <h2>Related patterns</h2>
+      <ul>
+        <li><a href="11-splitter.html">11 · Splitter</a> — the exact mirror image: a Splitter fans one message into many, this Aggregator collects them back into one. The two form the classic split → process → aggregate round-trip.</li>
+        <li><a href="13-recipient-list.html">13 · Recipient List</a> — fan a request out to several recipients, then let an Aggregator gather their replies: together they build the scatter-gather shape.</li>
+        <li><a href="16-content-enricher.html">16 · Content Enricher</a> — <span class="ep">enrich()</span> combines a message with looked-up data using the very same <span class="ep">AggregationStrategy</span> interface you write here.</li>
+        <li><a href="../eip-map.html">Full EIP Map</a> — see where the Aggregator sits among the routing patterns and what it composes with.</li>
+      </ul>
+
+      <h2>Common mistake</h2>
+      <p>The number-one Aggregator bug lives in the <span class="ep">AggregationStrategy</span>: <span class="ep">oldExchange</span> is <em>null</em> for the first message of every new group, so code that dereferences it without a guard throws a <span class="ep">NullPointerException</span> on item one and the group silently fails. Always branch on <span class="ep">oldExchange == null</span> to <b>seed</b> a fresh accumulator, then fold each later message into it — exactly what <span class="ep">LineItemAggregationStrategy</span> does. The runner-up is forgetting a <span class="ep">completion condition</span> altogether: with no <span class="ep">completionSize</span>/<span class="ep">completionTimeout</span> the group is held forever and nothing is ever emitted — which is why this route pairs the size rule with a timeout safety net.</p>
+
+      <h2>Production version</h2>
+      <p>The teaching route keeps in-flight groups in Camel's default <b>in-memory</b> aggregation repository, so a restart mid-order loses every partially-built confirmation. In production you point <span class="ep">aggregationRepository(...)</span> at a persistent store — JDBC, Infinispan, or a Kafka-backed repo — so pending groups survive restarts and can be recovered, and you swap <span class="ep">{{ep.out}}</span> from <span class="ep">log:</span>/<span class="ep">mock:</span> to a real <span class="ep">jms:</span> or <span class="ep">kafka:</span> endpoint. Externalize the completion tuning — <span class="ep">completionSize</span>, <span class="ep">completionTimeout</span>, and a <span class="ep">completionTimeoutCheckerInterval</span> — as config rather than hard-coded literals, and if you aggregate across a cluster enable <span class="ep">optimisticLocking</span> (or a shared repository) so two nodes don't fold the same correlation key concurrently. Finish with observability: the named <span class="ep">routeId("aggregator")</span> plus Micrometer metrics let you watch group counts, timeouts, and completion latency in real time.</p>
     </div>
 
     <nav class="pager" aria-label="Lesson">
@@ -139,15 +162,7 @@ void threeLineItemsBecomeOneConfirmation() throws Exception {
   </article>
 </main>
 
-<footer class="site-footer">
-  <div class="wrap cols">
-    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
-    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
-    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
-    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
-  </div>
-  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
-</footer>
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div><div><h4>Reference</h4><a href="../cheatsheet.html">Cheat sheet</a><a href="../camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="../request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="../dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
 <script src="../assets/js/nav.js"></script>
 </body>
 </html>

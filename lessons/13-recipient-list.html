@@ -45,10 +45,7 @@
   <nav class="nav wrap" aria-label="Primary">
     <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
     <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
-    <div class="nav-links" id="nav-links">
-      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
-      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/13-recipient-list">Module&nbsp;↗</a>
-    </div>
+    <div class="nav-links" id="nav-links"><a href="../index.html">Home</a><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a><a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;&#8599;</a></div>
   </nav>
 </header>
 
@@ -94,6 +91,13 @@
 
       <h2>Run it</h2>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/13-recipient-list spring-boot:run</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>  INFO 48213 --- [ - timer://demo] recipient-list  : Fanning out order A-2001 (amount 5000)
+  INFO 48213 --- [ - timer://demo] warehouse       : Exchange[Order{orderId='A-2001', country='IN', totalAmount=5000}]
+  INFO 48213 --- [ - timer://demo] invoicing       : Exchange[Order{orderId='A-2001', country='IN', totalAmount=5000}]
+  INFO 48213 --- [ - timer://demo] analytics       : Exchange[Order{orderId='A-2001', country='IN', totalAmount=5000}]
+  INFO 48213 --- [ - timer://demo] recipient-list  : Fanning out order A-2002 (amount 800)
+  INFO 48213 --- [ - timer://demo] warehouse       : Exchange[Order{orderId='A-2002', country='IN', totalAmount=800}]
+  INFO 48213 --- [ - timer://demo] invoicing       : Exchange[Order{orderId='A-2002', country='IN', totalAmount=800}]</code></pre></div>
       <p>A demo feeder injects a sample order every 3s, alternating between low and high amounts — watch low-value orders land on <span class="ep">log:warehouse</span> and <span class="ep">log:invoicing</span> only, while high-value ones <em>also</em> hit <span class="ep">log:analytics</span>. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
 
       <h2>The test is the spec</h2>
@@ -110,6 +114,13 @@ void highValueOrderAlsoHitsAnalytics() throws Exception {
 }</code></pre></div>
       <p>In the test profile the recipient endpoints resolve to <span class="ep">mock:warehouse</span>, <span class="ep">mock:invoicing</span>, <span class="ep">mock:analytics</span>, so each test asserts exactly which systems an order fanned out to. Its twin, <span class="ep">lowValueOrderSkipsAnalytics</span>, sends an amount of <span class="ep">250</span> and proves analytics receives <b>zero</b> messages. Run just the tests:</p>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/13-recipient-list test</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.597 s -- in com.example.eip.recipientlist.RecipientListTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] BUILD SUCCESS</code></pre></div>
 
       <div class="note"><span class="tag">Try it</span> Add a fourth recipient — a <span class="ep">mock:fraud-check</span> endpoint that only receives orders from a flagged country. Extend <span class="ep">RecipientResolver</span> to append it conditionally, then write the assertion that proves it fires for that country and stays empty otherwise.</div>
 
@@ -119,6 +130,20 @@ void highValueOrderAlsoHitsAnalytics() throws Exception {
         <li><span class="ep">recipientList(header("recipients"), ",")</span> splits a data-driven expression and delivers a copy to each — the dynamic sibling of a static <span class="ep">multicast()</span>.</li>
         <li>Property-placeholder endpoints (<span class="ep">{{ep.*}}</span>) let the same route hit real systems in production and <span class="ep">mock:</span> endpoints under test.</li>
       </ul>
+
+      <h2>Related patterns</h2>
+      <ul>
+        <li><a href="10-content-based-router.html">Content-Based Router</a> — its sibling: a router picks <em>one</em> destination from message content, while a Recipient List picks a whole <em>set</em>.</li>
+        <li><a href="14-wire-tap.html">Wire Tap</a> — the fixed-destination way to send an extra copy (audit/monitoring) without changing the main route.</li>
+        <li><a href="18-point-to-point-and-pub-sub.html">Point-to-Point vs Pub-Sub</a> — pub-sub broadcasts to <em>every</em> subscriber; a Recipient List is a sender-side, per-message choice of who gets a copy.</li>
+        <li><a href="../eip-map.html">Full EIP Map</a> — see where dynamic routing sits among the messaging patterns.</li>
+      </ul>
+
+      <h2>Common mistake</h2>
+      <p>Letting the recipients expression evaluate to <b>null or empty</b>. When <span class="ep">recipientList</span> gets no URIs it fans out to <em>nobody</em> and throws no error — the message silently vanishes, exactly like a Content-Based Router with no <span class="ep">otherwise()</span>. Guard against it by having <span class="ep">RecipientResolver</span> always return the mandatory recipients (here warehouse + invoicing). Watch the delimiter too: the string your bean builds must use the same separator you pass to <span class="ep">recipientList(header("recipients"), ",")</span>, or the whole list collapses into one bogus endpoint URI and delivery fails.</p>
+
+      <h2>Production version</h2>
+      <p>In production the <span class="ep">{{ep.*}}</span> placeholders resolve to durable transports — <span class="ep">jms:</span>, <span class="ep">kafka:</span>, or <span class="ep">http:</span> endpoints — instead of the teaching <span class="ep">log:</span>/<span class="ep">mock:</span> sinks, so a copy survives a downstream outage on a broker queue rather than living only in memory. Add <span class="ep">.parallelProcessing()</span> when downstreams are slow and independent, and decide failure semantics explicitly with <span class="ep">.stopOnException()</span> or an <span class="ep">AggregationStrategy</span> plus a dead-letter route, since by default a failing recipient does not fail the others. Externalize the endpoint URIs and the <span class="ep">high-value-threshold</span> into config or a secrets store so operations can re-point or re-tune recipients without a redeploy. Because each recipient is its own endpoint, wire per-destination metrics and tracing to see which systems a given order actually reached.</p>
     </div>
 
     <nav class="pager" aria-label="Lesson">
@@ -128,15 +153,7 @@ void highValueOrderAlsoHitsAnalytics() throws Exception {
   </article>
 </main>
 
-<footer class="site-footer">
-  <div class="wrap cols">
-    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
-    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
-    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
-    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
-  </div>
-  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
-</footer>
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div><div><h4>Reference</h4><a href="../cheatsheet.html">Cheat sheet</a><a href="../camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="../request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="../dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
 <script src="../assets/js/nav.js"></script>
 </body>
 </html>

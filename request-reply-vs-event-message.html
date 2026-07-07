@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Request-Reply vs Event Message | EIP Hands-On</title>
+  <meta name="description" content="Request-Reply vs Event Message in Apache Camel: synchronous InOut versus fire-and-forget InOnly — coupling, latency, scaling, and when to use each.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/request-reply-vs-event-message.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Request-Reply vs Event Message">
+  <meta property="og:description" content="Synchronous InOut versus fire-and-forget InOnly in Apache Camel — coupling, latency, scaling, and when to use each.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/request-reply-vs-event-message.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Request-Reply vs Event Message">
+  <meta name="twitter:description" content="Synchronous InOut versus fire-and-forget InOnly in Apache Camel — coupling, latency, scaling, and when to use each.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Request-Reply vs Event Message", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/request-reply-vs-event-message.html" } ] },
+      { "@type": "Article",
+        "headline": "Request-Reply vs Event Message",
+        "description": "A decision guide comparing Request-Reply (InOut) and Event Message (InOnly) in Apache Camel: coupling, latency, failure handling, scalability, and when to use each.",
+        "inLanguage": "en",
+        "mainEntityOfPage": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/request-reply-vs-event-message.html",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On", "url": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links"><a href="index.html">Home</a><a href="guide.html">Guide</a><a href="curriculum.html">Curriculum</a><a href="eip-map.html">EIP Map</a><a href="setup.html">Setup</a><a href="glossary.html">Glossary</a><a href="about.html">About</a><a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;&#8599;</a></div>
+  </nav>
+</header>
+
+<main id="main">
+  <section class="lesson wrap">
+    <p class="kicker">Pattern comparison</p>
+    <h1>Request-Reply vs Event Message</h1>
+    <div class="prose">
+      <p class="lead muted">Two ways to send a message: ask a question and wait for the answer, or announce a fact and move on. One line of Camel decides which — and the choice shapes your coupling, latency, and how the system fails.</p>
+
+      <h2>The two styles in one paragraph</h2>
+      <p><b>Request-Reply</b> is an <span class="ep">InOut</span> exchange: the sender transmits a message and blocks until a <em>correlated reply</em> comes back. That creates temporal coupling — the caller depends on the responder being up and answering now. Reach for it when you need a result to keep going: a query, or a command whose outcome you must have, such as a payment authorization. In Camel it is <span class="ep">ExchangePattern.InOut</span>, and the caller uses <span class="ep">template.requestBody(...)</span>.</p>
+      <p><b>Event Message</b> is an <span class="ep">InOnly</span> exchange: a fire-and-forget notification that <em>something happened</em>, with no reply expected. That gives you loose coupling — the emitter neither knows nor waits for whoever consumes the fact. Reach for it to broadcast facts like <span class="ep">order-placed</span>, typically over a <a href="lessons/18-point-to-point-and-pub-sub.html">Publish-Subscribe channel</a> so 0..N subscribers react independently. In Camel it is the default <span class="ep">InOnly</span> — an ordinary <span class="ep">to(...)</span>, or an explicit <span class="ep">setExchangePattern(ExchangePattern.InOnly)</span>.</p>
+
+      <h2>Trade-offs at a glance</h2>
+      <table class="data">
+        <tr><th>Concern</th><th>Request-Reply</th><th>Event Message</th></tr>
+        <tr><td><b>Exchange pattern</b></td><td>InOut — message out, correlated reply back</td><td>InOnly — one-way, no reply channel</td></tr>
+        <tr><td><b>Coupling</b></td><td>Temporal &amp; behavioural: caller bound to the responder being available and answering</td><td>Loose: emitter decoupled from 0..N consumers, who may not even exist yet</td></tr>
+        <tr><td><b>Latency</b></td><td>Caller blocks until the reply arrives (or the call times out)</td><td>Caller returns immediately; consumers process out of band</td></tr>
+        <tr><td><b>Failure handling</b></td><td>Errors surface to the caller synchronously — an exception on <span class="ep">requestBody</span> you can catch and react to</td><td>No caller to surface to — needs a <a href="lessons/19-dead-letter-channel.html">Dead Letter Channel</a> and monitoring to catch failures</td></tr>
+        <tr><td><b>Scalability</b></td><td>Bounded by the slowest responder; fanning out to many handlers is awkward</td><td>Fans out naturally via pub/sub — add subscribers without touching the emitter</td></tr>
+        <tr><td><b>Typical use</b></td><td>Queries and commands that need a result now: payment authorization, price lookup, validation</td><td>"Something happened" facts consumed independently: order-placed, user-registered, file-uploaded</td></tr>
+      </table>
+
+      <h2>How it looks in Camel</h2>
+      <p><b>Request-Reply (InOut).</b> The responder route puts the answer on the body; the caller blocks for it with <span class="ep">requestBody</span>:</p>
+      <div class="code"><div class="code-head"><span>RequestReplyRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>// Responder: consume the order, replace the body with the reply.
+from("direct:authorize")
+    .routeId("payment")
+    .log("Authorizing order ${body.orderId} for ${body.amount}")
+    .setBody(simple("AUTH-${body.orderId}"));      // this becomes the reply
+
+// Caller: InOut — block until the correlated reply comes back.
+String auth = template.requestBody("direct:authorize", order, String.class);
+// auth == "AUTH-A-1001"</code></pre></div>
+      <p>Over an in-memory <span class="ep">direct:</span> endpoint Camel correlates the reply for you in-process. Over an <em>async</em> transport such as JMS you need a reply channel and a <a href="lessons/16-content-enricher.html">Correlation Identifier</a> to match answers to requests — Camel manages a temporary reply queue and the <span class="ep">JMSCorrelationID</span> automatically when the exchange is InOut:</p>
+      <div class="code"><div class="code-head"><span>JmsRequestReply.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:pay")
+    // InOut over JMS: Camel creates a temporary reply queue and correlates
+    // the response by JMSCorrelationID — no manual plumbing.
+    .to(ExchangePattern.InOut, "jms:queue:authorize");</code></pre></div>
+
+      <p><b>Event Message (InOnly).</b> The emitter publishes a fact and moves on. <span class="ep">to(...)</span> is InOnly by default; make the intent explicit so even an InOut caller fires it one-way:</p>
+      <div class="code"><div class="code-head"><span>EventMessageRoute.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>// Emitter: announce the fact one-way, no reply awaited.
+from("direct:orders")
+    .routeId("emit-event")
+    .setExchangePattern(ExchangePattern.InOnly)    // explicit fire-and-forget
+    .log("Emitting order-received for ${body.orderId} (no reply)")
+    .to("jms:topic:order-received");               // pub/sub fan-out
+
+// Caller: sendBody is the one-way verb — returns immediately.
+template.sendBody("direct:orders", order);</code></pre></div>
+      <p>Publishing to a <em>topic</em> gives you Publish-Subscribe: every subscriber gets its own copy, and you add or remove them without the emitter ever knowing.</p>
+
+      <h2>Pitfalls</h2>
+      <ul>
+        <li><b>Waiting for a reply that never comes.</b> An InOut call over a transport with no responder — or a responder that never sets a reply — blocks until it times out. Always set a sensible <span class="ep">requestTimeout</span> on async request-reply and handle the timeout.</li>
+        <li><b>Fire-and-forgetting a result you needed.</b> Using <span class="ep">sendBody</span> (InOnly) when you actually depend on the outcome silently drops the answer. If you need the auth code, use <span class="ep">requestBody</span>.</li>
+        <li><b>Silent event failures.</b> With no caller to raise the error to, a failed Event Message vanishes unless you wire a <a href="lessons/19-dead-letter-channel.html">Dead Letter Channel</a> and monitor it. "No reply" is not "no failures".</li>
+        <li><b>Request-Reply for broadcasts.</b> If several handlers should react to the same fact, don't turn it into N blocking calls — publish one event and let pub/sub fan it out.</li>
+        <li><b>Distributed coupling.</b> A chain of synchronous InOut hops multiplies latency and turns one slow service into a system-wide stall. Prefer events at the seams where you can tolerate eventual processing.</li>
+      </ul>
+
+      <h2>Rule of thumb</h2>
+      <div class="note"><span class="tag">Verdict</span> If the sender <b>cannot proceed without the answer</b>, use Request-Reply (InOut, <span class="ep">requestBody</span>) and accept the temporal coupling — but bound it with a timeout and handle the error. If you are merely <b>announcing that something happened</b> and others may or may not care, use an Event Message (InOnly, <span class="ep">sendBody</span> over pub/sub) and lean on a Dead Letter Channel plus monitoring for reliability. When in doubt, prefer events at service boundaries and keep Request-Reply inside a service where the round-trip is cheap.</div>
+
+      <p>See both patterns run, with tests, in <a href="lessons/21-request-reply-and-event-message.html">lesson 21 · Request-Reply vs Event Message</a>. For the channel that events ride on, work through <a href="lessons/18-point-to-point-and-pub-sub.html">lesson 18 · Point-to-Point vs Publish-Subscribe</a>. For the wider picture, the <a href="guide.html">course guide</a> and the <a href="eip-map.html">EIP map</a> place these patterns among the rest.</p>
+
+      <h2>Where to go next</h2>
+      <div class="grid cols-3">
+        <div class="card"><p class="num">RUN IT</p><h3>Lesson 21</h3><p>Both patterns as a runnable Camel module with JUnit tests proving InOut returns a correlated reply and InOnly fires and forgets. <a href="lessons/21-request-reply-and-event-message.html">Open lesson 21 →</a></p></div>
+        <div class="card"><p class="num">CHANNELS</p><h3>Lesson 18</h3><p>Point-to-Point vs Publish-Subscribe on ActiveMQ Artemis — the channel that lets one event fan out to many subscribers. <a href="lessons/18-point-to-point-and-pub-sub.html">Open lesson 18 →</a></p></div>
+        <div class="card"><p class="num">CORRELATE</p><h3>Lesson 16</h3><p>Content Enricher and the correlation ideas you lean on to match async replies back to their requests. <a href="lessons/16-content-enricher.html">Open lesson 16 →</a></p></div>
+      </div>
+
+      <p style="margin-top:26px"><a class="btn btn-primary" href="lessons/21-request-reply-and-event-message.html">Run the module →</a> <a class="btn btn-ghost" href="curriculum.html">Browse the curriculum</a></p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="guide.html">Guide</a><a href="curriculum.html">Curriculum</a><a href="eip-map.html">EIP Map</a><a href="setup.html">Setup</a><a href="glossary.html">Glossary</a><a href="about.html">About</a></div><div><h4>Reference</h4><a href="cheatsheet.html">Cheat sheet</a><a href="camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
+<script src="assets/js/nav.js"></script>
+</body>
+</html>

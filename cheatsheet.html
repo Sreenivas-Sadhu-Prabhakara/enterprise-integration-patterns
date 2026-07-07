@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Apache Camel EIP Cheat Sheet | EIP Hands-On</title>
+  <meta name="description" content="A one-page Apache Camel cheat sheet — the DSL for every Enterprise Integration Pattern in this course: routing, transformation, reliability, and testing.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/cheatsheet.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Apache Camel EIP Cheat Sheet">
+  <meta property="og:description" content="The DSL for every Enterprise Integration Pattern in this course — routing, transformation, reliability, endpoints, testing, and run commands, on one printable page.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/cheatsheet.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Apache Camel EIP Cheat Sheet">
+  <meta name="twitter:description" content="Every EIP's Camel 4 DSL on one printable page: routing, transformation, reliability, endpoints, testing, commands.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+          { "@type": "ListItem", "position": 2, "name": "Apache Camel EIP Cheat Sheet", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/cheatsheet.html" }
+        ]
+      },
+      {
+        "@type": "Article",
+        "headline": "Apache Camel EIP Cheat Sheet",
+        "description": "A one-page Apache Camel cheat sheet: the DSL for every Enterprise Integration Pattern in this course — routing, transformation, reliability, endpoints, testing, and the run commands.",
+        "inLanguage": "en",
+        "url": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/cheatsheet.html",
+        "mainEntityOfPage": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/cheatsheet.html",
+        "image": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg",
+        "isPartOf": {
+          "@type": "Course",
+          "name": "Enterprise Integration Patterns, Hands-On",
+          "url": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/"
+        },
+        "author": { "@type": "Organization", "name": "EIP Hands-On", "url": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        "publisher": { "@type": "Organization", "name": "EIP Hands-On" }
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links"><a href="index.html">Home</a><a href="guide.html">Guide</a><a href="curriculum.html">Curriculum</a><a href="eip-map.html">EIP Map</a><a href="setup.html">Setup</a><a href="glossary.html">Glossary</a><a href="about.html">About</a><a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;&#8599;</a></div>
+  </nav>
+</header>
+
+<main id="main">
+  <section class="lesson wrap" style="padding-bottom:8px">
+    <p class="kicker">Reference</p>
+    <h1>Apache Camel EIP Cheat Sheet</h1>
+    <div class="prose">
+      <p class="lead muted">The Camel&nbsp;4 DSL for every Enterprise Integration Pattern in this course — routing, transformation, reliability, endpoints, testing, and the run commands — on one page.</p>
+      <p style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:22px">
+        <a class="btn btn-primary" href="cheatsheet.pdf">Download PDF</a>
+        <a class="btn btn-ghost" href="curriculum.html">Full curriculum →</a>
+      </p>
+      <p class="muted" style="font-size:.92rem">Print this page (Cmd/Ctrl+P) for a physical card. New here? Start with the <a href="guide.html">guide</a>, then work the <a href="curriculum.html">curriculum</a> lesson by lesson.</p>
+    </div>
+  </section>
+
+  <section class="wrap" style="padding-top:14px">
+    <div class="grid cols-2">
+
+      <!-- 1. Route basics -->
+      <div class="card">
+        <p class="num">Group 01</p>
+        <h3>Route basics</h3>
+        <div class="code" style="margin:10px 0 0"><div class="code-head"><span>RouteBuilder.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:orders")
+  .routeId("order-intake")
+  .log("received ${body}")
+  .to("bean:validate")
+  .to("seda:accepted");
+
+// a timer-driven source
+from("timer:tick?period=5000")
+  .routeId("feed")
+  .to("direct:orders");</code></pre></div>
+        <p class="mono muted" style="font-size:.78rem;margin:12px 0 0">Covered in: <a href="lessons/03-your-first-route.html">03</a> · <a href="lessons/04-message-channel-and-endpoint.html">04</a></p>
+      </div>
+
+      <!-- 2. Simple language -->
+      <div class="card">
+        <p class="num">Group 02</p>
+        <h3>Simple language</h3>
+        <div class="code" style="margin:10px 0 0"><div class="code-head"><span>Simple expressions</span><button class="copy-btn" type="button">copy</button></div><pre><code>${body}              // the message body
+${header.country}    // one header (also headers.country)
+${body.total}        // bean property → getTotal()
+${exchangeProperty.count}
+
+// predicates (use inside simple("..."))
+${header.country} == 'US'
+${body.total} &gt; 100
+${header.sku} regex '[A-Z]{3}-\d+'
+${body} contains 'urgent'</code></pre></div>
+        <p class="mono muted" style="font-size:.78rem;margin:12px 0 0">Covered in: <a href="lessons/05-message-and-exchange.html">05</a> · <a href="lessons/09-message-filter.html">09</a> · <a href="lessons/10-content-based-router.html">10</a></p>
+      </div>
+
+      <!-- 3. Routing EIPs -->
+      <div class="card">
+        <p class="num">Group 03</p>
+        <h3>Routing EIPs</h3>
+        <div class="code" style="margin:10px 0 0"><div class="code-head"><span>Routing DSL</span><button class="copy-btn" type="button">copy</button></div><pre><code>.choice()
+  .when(simple("${header.country} == 'US'")).to("direct:us")
+  .when(simple("${header.country} == 'UK'")).to("direct:uk")
+  .otherwise().to("direct:intl")
+.end()
+
+.filter(simple("${body.total} &gt; 0")).to("direct:billable")
+
+.split(body()).to("direct:line")     // one → many
+.split(jsonpath("$.items"))
+.split(body().tokenize(","))         // split a CSV body
+
+.aggregate(header("orderId"),
+      new GroupedBodyAggregationStrategy())
+    .completionSize(10).completionTimeout(2000)
+
+.recipientList(header("recipients")) // comma-separated URIs
+.multicast().parallelProcessing()
+    .to("direct:a", "direct:b").end()
+.wireTap("direct:audit")             // fire-and-forget copy
+.dynamicRouter(method(Router.class, "next"))
+.routingSlip(header("itinerary"))</code></pre></div>
+        <p class="mono muted" style="font-size:.78rem;margin:12px 0 0">Covered in: <a href="lessons/08-pipes-and-filters.html">08</a> · <a href="lessons/09-message-filter.html">09</a> · <a href="lessons/10-content-based-router.html">10</a> · <a href="lessons/11-splitter.html">11</a> · <a href="lessons/12-aggregator.html">12</a> · <a href="lessons/13-recipient-list.html">13</a> · <a href="lessons/14-wire-tap.html">14</a></p>
+      </div>
+
+      <!-- 4. Transformation -->
+      <div class="card">
+        <p class="num">Group 04</p>
+        <h3>Transformation</h3>
+        <div class="code" style="margin:10px 0 0"><div class="code-head"><span>Transform &amp; marshal</span><button class="copy-btn" type="button">copy</button></div><pre><code>.transform(simple("Hello ${body.name}"))
+.setBody(simple("${body.customer}"))
+.setHeader("region", simple("${body.country}"))
+
+// JSON to/from POJO (Jackson)
+.unmarshal().json(JsonLibrary.Jackson, Order.class)
+.marshal().json(JsonLibrary.Jackson)
+
+// call a bean
+.bean(OrderService.class, "enrich")
+.to("bean:orderService?method=score")
+
+// content enricher — merge in extra data
+.enrich("direct:lookupCustomer", new MergeStrategy())
+.pollEnrich("file:rates?fileName=fx.json")</code></pre></div>
+        <p class="mono muted" style="font-size:.78rem;margin:12px 0 0">Covered in: <a href="lessons/15-message-translator.html">15</a> · <a href="lessons/16-content-enricher.html">16</a></p>
+      </div>
+
+      <!-- 5. Reliability -->
+      <div class="card">
+        <p class="num">Group 05</p>
+        <h3>Reliability</h3>
+        <div class="code" style="margin:10px 0 0"><div class="code-head"><span>Error handling</span><button class="copy-btn" type="button">copy</button></div><pre><code>// global dead-letter + redelivery / backoff
+errorHandler(deadLetterChannel("seda:dead")
+    .maximumRedeliveries(3)
+    .redeliveryDelay(1000)
+    .backOffMultiplier(2)
+    .useOriginalMessage());
+
+// per-exception policy
+onException(IOException.class)
+    .maximumRedeliveries(2)
+    .handled(true)
+    .to("direct:failed");
+
+// process each id at most once
+from("direct:in")
+  .idempotentConsumer(header("orderId"),
+      MemoryIdempotentRepository
+          .memoryIdempotentRepository(500))
+  .to("direct:process");</code></pre></div>
+        <p class="mono muted" style="font-size:.78rem;margin:12px 0 0">Covered in: <a href="lessons/07-error-handling-basics.html">07</a> · <a href="lessons/19-dead-letter-channel.html">19</a> · <a href="lessons/20-idempotent-consumer.html">20</a></p>
+      </div>
+
+      <!-- 6. Endpoints -->
+      <div class="card">
+        <p class="num">Group 06</p>
+        <h3>Endpoints</h3>
+        <div class="code" style="margin:10px 0 0"><div class="code-head"><span>Endpoint URIs</span><button class="copy-btn" type="button">copy</button></div><pre><code>direct:name    // sync · same thread · same JVM
+seda:name      // async in-memory queue (staged)
+vm:name        // async · across contexts in one JVM
+
+jms:queue:orders     // point-to-point (one consumer)
+jms:topic:events     // publish-subscribe (all subscribers)
+kafka:orders?brokers=localhost:9092
+
+timer:tick?period=5000
+file:inbox?move=.done</code></pre></div>
+        <p class="mono muted" style="font-size:.78rem;margin:12px 0 0">Covered in: <a href="lessons/04-message-channel-and-endpoint.html">04</a> · <a href="lessons/18-point-to-point-and-pub-sub.html">18</a></p>
+      </div>
+
+      <!-- 7. Testing -->
+      <div class="card">
+        <p class="num">Group 07</p>
+        <h3>Testing</h3>
+        <div class="code" style="margin:10px 0 0"><div class="code-head"><span>RouteTest.java</span><button class="copy-btn" type="button">copy</button></div><pre><code>@CamelSpringBootTest
+@SpringBootTest
+class RouteTest {
+  @Autowired CamelContext context;
+  @Autowired ProducerTemplate template;
+  @EndpointInject("mock:result") MockEndpoint mock;
+
+  @Test void routesToResult() throws Exception {
+    mock.expectedMessageCount(1);
+    mock.expectedBodiesReceived("OK");
+    template.sendBody("direct:in", "ping");
+    mock.assertIsSatisfied();
+  }
+}
+
+// swap a real endpoint for a mock at test time
+AdviceWith.adviceWith(context, "order-intake",
+    a -&gt; a.weaveById("send").replace().to("mock:result"));
+
+// assert message flow without mocks
+NotifyBuilder done = new NotifyBuilder(context)
+    .whenDone(1).create();</code></pre></div>
+        <p class="mono muted" style="font-size:.78rem;margin:12px 0 0">Covered in: <a href="lessons/06-testing-camel-routes.html">06</a></p>
+      </div>
+
+      <!-- 8. Commands -->
+      <div class="card">
+        <p class="num">Group 08</p>
+        <h3>Commands</h3>
+        <div class="code" style="margin:10px 0 0"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw test                    # unit tests only
+./mvnw verify                  # full build + integration
+./mvnw -pl patterns/10-content-based-router test
+./mvnw -pl patterns/10-content-based-router spring-boot:run
+./mvnw -P upstream verify      # plain Apache Camel (Central)
+make up                        # start the broker (lesson 18)</code></pre></div>
+        <p class="mono muted" style="font-size:.78rem;margin:12px 0 0">Covered in: <a href="setup.html">Setup</a> · <a href="lessons/18-point-to-point-and-pub-sub.html">18</a></p>
+      </div>
+
+    </div>
+
+    <div class="note" style="margin-top:26px"><span class="tag">Tip</span> These snippets are trimmed to the essential DSL. Every group maps to a runnable lesson module — open the linked lesson to see the full route, its test, and the reasoning. See the <a href="guide.html">guide</a> for how to read a lesson, or jump into the <a href="curriculum.html">curriculum</a>.</div>
+  </section>
+</main>
+
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="guide.html">Guide</a><a href="curriculum.html">Curriculum</a><a href="eip-map.html">EIP Map</a><a href="setup.html">Setup</a><a href="glossary.html">Glossary</a><a href="about.html">About</a></div><div><h4>Reference</h4><a href="cheatsheet.html">Cheat sheet</a><a href="camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
+<script src="assets/js/nav.js"></script>
+</body>
+</html>

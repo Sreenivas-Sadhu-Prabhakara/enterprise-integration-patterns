@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Apache Camel vs Spring Integration | EIP Hands-On</title>
+  <meta name="description" content="Apache Camel vs Spring Integration: components, routing DSL, error handling, and when to choose each for Enterprise Integration Patterns on Spring Boot.">
+  <link rel="canonical" href="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/camel-vs-spring-integration.html">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0B1520">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="EIP Hands-On">
+  <meta property="og:title" content="Apache Camel vs Spring Integration">
+  <meta property="og:description" content="Two JVM frameworks for Enterprise Integration Patterns, compared fairly — components, routing DSL, error handling, and when to choose each.">
+  <meta property="og:url" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/camel-vs-spring-integration.html">
+  <meta property="og:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Apache Camel vs Spring Integration">
+  <meta name="twitter:description" content="Two JVM frameworks for Enterprise Integration Patterns, compared fairly — components, routing DSL, error handling, and when to choose each.">
+  <meta name="twitter:image" content="https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/assets/img/og-image.svg">
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "BreadcrumbList", "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" },
+        { "@type": "ListItem", "position": 2, "name": "Apache Camel vs Spring Integration", "item": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/camel-vs-spring-integration.html" } ] },
+      { "@type": "Article",
+        "headline": "Apache Camel vs Spring Integration",
+        "description": "Apache Camel vs Spring Integration compared: components, routing DSL, error handling, footprint, and when to choose each for Enterprise Integration Patterns on Spring Boot.",
+        "inLanguage": "en",
+        "mainEntityOfPage": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/camel-vs-spring-integration.html",
+        "isPartOf": { "@type": "Course", "name": "Enterprise Integration Patterns, Hands-On",
+          "url": "https://sreenivas-sadhu-prabhakara.github.io/enterprise-integration-patterns/" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
+    <div class="nav-links" id="nav-links"><a href="index.html">Home</a><a href="guide.html">Guide</a><a href="curriculum.html">Curriculum</a><a href="eip-map.html">EIP Map</a><a href="setup.html">Setup</a><a href="glossary.html">Glossary</a><a href="about.html">About</a><a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;&#8599;</a></div>
+  </nav>
+</header>
+
+<main id="main">
+  <section class="lesson wrap">
+    <p class="kicker">Compare</p>
+    <h1>Apache Camel vs Spring Integration</h1>
+    <div class="prose">
+      <p class="lead muted">Two mature, open-source JVM frameworks implement the Enterprise Integration Patterns, and both run happily on Spring Boot. Here is a fair look at what each is good at — and a clear recommendation at the end.</p>
+
+      <p>Both <b>Apache Camel</b> and <b>Spring Integration</b> are direct descendants of Gregor Hohpe and Bobby Woolf's <a href="https://www.enterpriseintegrationpatterns.com/">Enterprise Integration Patterns</a>. They give you channels, routers, filters, translators, aggregators and the rest as reusable building blocks, and either one drops into a Spring Boot application with a single starter dependency. They solve the same class of problem; they just make different trade-offs about scope, breadth and programming model.</p>
+
+      <h2>Side by side</h2>
+      <table class="data">
+        <tr><th>Aspect</th><th>Apache Camel</th><th>Spring Integration</th></tr>
+        <tr><td>Primary role</td><td>Standalone integration framework — an ESB-style routing and mediation engine</td><td>Spring's native in-application messaging framework</td></tr>
+        <tr><td>Component / adapter count</td><td class="mono">300+ components &amp; connectors</td><td class="mono">Dozens of adapters</td></tr>
+        <tr><td>Routing DSL</td><td>Concise route DSL in Java, XML, YAML or Kotlin</td><td>Spring programming model — <span class="ep">MessageChannel</span>, <span class="ep">@ServiceActivator</span>, the <span class="ep">IntegrationFlow</span> Java DSL</td></tr>
+        <tr><td>EIP coverage</td><td>First-class, near-complete catalog coverage</td><td>Broad coverage of the core patterns</td></tr>
+        <tr><td>Error handling &amp; redelivery</td><td>Built in — redelivery policies and a Dead Letter Channel out of the box</td><td>Retry advice, error channels and Spring Retry integration</td></tr>
+        <tr><td>Data formats</td><td>Many built-in formats and transformers (JSON, XML, CSV, Avro, …)</td><td>Fewer built-in formats; leans on Spring's converters</td></tr>
+        <tr><td>Learning curve</td><td>New DSL and vocabulary to learn, but consistent across protocols</td><td>Gentle if you already think in Spring beans and annotations</td></tr>
+        <tr><td>Best fit</td><td>Multi-protocol, ESB-style and microservice integration</td><td>Lightweight messaging inside an app that is already all-in on Spring</td></tr>
+      </table>
+
+      <h2>Where they overlap</h2>
+      <p>For the everyday routing patterns, the two are genuinely interchangeable. A Content-Based Router, a Message Filter, a Splitter, an Aggregator or a Wire Tap can be expressed cleanly in either framework, and both give you a Java DSL that reads as a flow from source to destination. Both run in-process on Spring Boot, both are tested with ordinary JUnit, and both let you keep integration logic out of your business code. If your needs are modest — a handful of channels and a couple of transformations — you will succeed with whichever one your team already knows.</p>
+
+      <h2>Where Camel pulls ahead</h2>
+      <p>Camel's advantage is <b>reach and completeness</b>. Its 300+ components mean that talking to Kafka, an FTP server, an S3 bucket, a JMS broker, an HTTP API and a database can all use the same <span class="ep">from(...).to(...)</span> shape — you learn one DSL and gain every protocol. Its coverage of the EIP catalog is first-class, and reliability features that you would otherwise assemble by hand are built in: redelivery policies, backoff, and a Dead Letter Channel are one line each. That makes Camel the natural choice for standalone, ESB-like integration work and for microservices that stitch together many external systems.</p>
+      <p>A Content-Based Router in Camel 4's Java DSL:</p>
+      <div class="code"><div class="code-head"><span>OrderRoute.java · Apache Camel 4</span><button class="copy-btn" type="button">copy</button></div><pre><code>from("direct:orders")
+    .routeId("order-router")
+    .choice()
+        .when(simple("${body.total} &gt; 1000"))
+            .to("direct:highValue")
+        .when(simple("${header.country} == 'US'"))
+            .to("direct:domestic")
+        .otherwise()
+            .to("direct:international")
+    .end();</code></pre></div>
+      <p>And reliable delivery with a Dead Letter Channel and redelivery, entirely declarative:</p>
+      <div class="code"><div class="code-head"><span>ErrorConfig.java · Apache Camel 4</span><button class="copy-btn" type="button">copy</button></div><pre><code>errorHandler(deadLetterChannel("direct:dead")
+    .maximumRedeliveries(3)
+    .redeliveryDelay(1000)
+    .retryAttemptedLogLevel(LoggingLevel.WARN)
+    .useOriginalMessage());</code></pre></div>
+
+      <h2>Where Spring Integration fits</h2>
+      <p>Spring Integration's advantage is <b>fit</b>. If your application is already all-in on Spring, its abstractions — <span class="ep">MessageChannel</span>, <span class="ep">@ServiceActivator</span>, and the <span class="ep">IntegrationFlow</span> DSL — feel like a continuation of the framework you already use, with the same dependency injection, configuration and testing story. It ships fewer external adapters, but that is rarely a problem for lightweight, in-application messaging where the systems you touch are few and mostly Spring-friendly. When you want EIP structure without adopting a second framework and its vocabulary, Spring Integration is the lower-friction path.</p>
+      <p>The same routing idea expressed with the Spring Integration Java DSL:</p>
+      <div class="code"><div class="code-head"><span>OrderFlow.java · Spring Integration</span><button class="copy-btn" type="button">copy</button></div><pre><code>@Bean
+IntegrationFlow orderFlow() {
+    return IntegrationFlow.from("orders.input")
+        .&lt;Order&gt;route(order -&gt; order.total() &gt; 1000
+                ? "highValue"
+                : order.country().equals("US") ? "domestic" : "international",
+            mapping -&gt; mapping
+                .subFlowMapping("highValue",    sf -&gt; sf.channel("highValue.input"))
+                .subFlowMapping("domestic",     sf -&gt; sf.channel("domestic.input"))
+                .subFlowMapping("international", sf -&gt; sf.channel("international.input")))
+        .get();
+}</code></pre></div>
+
+      <h2>Which should you pick?</h2>
+      <p>There is no wrong answer here — both are production-grade — but the decision usually falls out cleanly:</p>
+      <div class="grid cols-2">
+        <div class="card">
+          <p class="num">CHOOSE CAMEL WHEN</p>
+          <h3>Breadth &amp; reliability</h3>
+          <p>You touch many protocols and connectors, need complex routing and transformation, are building standalone or ESB-like integration, want the broadest component library, or want strong redelivery and a Dead Letter Channel out of the box.</p>
+        </div>
+        <div class="card">
+          <p class="num">CHOOSE SPRING INTEGRATION WHEN</p>
+          <h3>Spring-native &amp; lightweight</h3>
+          <p>You are deeply invested in Spring, want lightweight in-application EIP, prefer Spring-native abstractions over learning a new DSL, and talk to relatively few external systems.</p>
+        </div>
+      </div>
+      <p>Put simply: reach for <b>Apache Camel</b> when integration <em>is</em> the job and the surface area is wide; reach for <b>Spring Integration</b> when you want a little EIP structure inside an app that is already a Spring citizen.</p>
+
+      <div class="note"><span class="tag">On this course</span> We teach with <b>Apache Camel</b> because its breadth lets you practise every pattern in one consistent DSL — but the concepts are framework-agnostic. Once you understand a <a href="lessons/10-content-based-router.html">Content-Based Router</a>, <a href="lessons/08-pipes-and-filters.html">Pipes and Filters</a>, or a <a href="lessons/19-dead-letter-channel.html">Dead Letter Channel</a>, you can implement the same idea in Spring Integration, or any EIP toolkit, without relearning the pattern.</div>
+
+      <p style="margin-top:26px"><a class="btn btn-primary" href="guide.html">Read the full EIP guide →</a> <a class="btn btn-ghost" href="eip-map.html">Browse the pattern map →</a></p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="guide.html">Guide</a><a href="curriculum.html">Curriculum</a><a href="eip-map.html">EIP Map</a><a href="setup.html">Setup</a><a href="glossary.html">Glossary</a><a href="about.html">About</a></div><div><h4>Reference</h4><a href="cheatsheet.html">Cheat sheet</a><a href="camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
+<script src="assets/js/nav.js"></script>
+</body>
+</html>

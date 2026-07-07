@@ -45,10 +45,7 @@
   <nav class="nav wrap" aria-label="Primary">
     <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
     <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
-    <div class="nav-links" id="nav-links">
-      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
-      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/11-splitter">Module&nbsp;↗</a>
-    </div>
+    <div class="nav-links" id="nav-links"><a href="../index.html">Home</a><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a><a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;&#8599;</a></div>
   </nav>
 </header>
 
@@ -99,6 +96,14 @@
 
       <h2>Run it</h2>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/11-splitter spring-boot:run</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>INFO  splitter : Splitting order A-1001
+INFO  splitter : item 0 of 3: SKU-1-A
+INFO  item     : Exchange[Body: SKU-1-A]
+INFO  splitter : item 1 of 3: SKU-1-B
+INFO  item     : Exchange[Body: SKU-1-B]
+INFO  splitter : item 2 of 3: SKU-1-C
+INFO  item     : Exchange[Body: SKU-1-C]
+# ...then A-1002 (SKU-2-A/B/C), A-1003, ... one order every 3s</code></pre></div>
       <p>A demo feeder injects a sample 3-line order every 3 seconds — watch a <span class="ep">Splitting order A-1001</span> line followed by <span class="ep">item 0 of 3</span>, <span class="ep">item 1 of 3</span>, <span class="ep">item 2 of 3</span> landing one per item. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
 
       <h2>The test is the spec</h2>
@@ -115,6 +120,12 @@ void splitsBulkOrderIntoOneMessagePerLineItem() throws Exception {
 }</code></pre></div>
       <p>In the test profile <span class="ep">{{ep.item}}</span> resolves to <span class="ep">mock:item</span>, so the test asserts exactly three messages fan out with the right bodies in order. A second test proves every sub-message carries the right <span class="ep">CamelSplitIndex</span> (0, 1, 2) and <span class="ep">CamelSplitSize</span> (3). Run just the tests:</p>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/11-splitter test</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>[INFO] Running com.example.eip.splitter.SplitterTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.443 s
+[INFO]
+[INFO] Results:
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS</code></pre></div>
 
       <div class="note"><span class="tag">Try it</span> Send an order of five items and add an assertion that every sub-message reports <span class="ep">CamelSplitSize == 5</span>. Then add <span class="ep">.streaming()</span> after <span class="ep">split(...)</span> and watch which assertion breaks.</div>
 
@@ -124,6 +135,20 @@ void splitsBulkOrderIntoOneMessagePerLineItem() throws Exception {
         <li><span class="ep">split(expression)</span> is the Camel DSL — and Camel stamps each sub-message with <span class="ep">CamelSplitIndex</span> and (unless streaming) <span class="ep">CamelSplitSize</span>.</li>
         <li>A property-placeholder per-item endpoint keeps the same route production-real and test-assertable; <span class="ep">.streaming()</span> trades a known size for constant memory on huge inputs.</li>
       </ul>
+
+      <h2>Related patterns</h2>
+      <ul>
+        <li><a href="12-aggregator.html">12 · Aggregator</a> — the natural inverse: it recombines the sub-messages a Splitter emits, and can use <span class="ep">CamelSplitSize</span> as its completion signal to know when every piece has arrived.</li>
+        <li><a href="13-recipient-list.html">13 · Recipient List</a> — the other fan-out: a Splitter emits one message per <em>element of the body</em>, while a Recipient List emits one per <em>destination in a computed list</em>.</li>
+        <li><a href="08-pipes-and-filters.html">08 · Pipes &amp; Filters</a> — each split sub-message flows on as its own exchange, so downstream it typically enters its own pipeline of processing steps.</li>
+        <li><a href="../eip-map.html">Full EIP Map</a> — see where the Splitter sits among the routing patterns and what it composes with.</li>
+      </ul>
+
+      <h2>Common mistake</h2>
+      <p>Adding <span class="ep">.streaming()</span> and then still depending on <span class="ep">CamelSplitSize</span> downstream. When you stream, Camel iterates the collection lazily and does <em>not</em> know the total up front, so <span class="ep">CamelSplitSize</span> stays <span class="ep">-1</span> on every sub-message except the last — any "item X of N" logic or a size-based completion in a later Aggregator silently breaks. Only enable streaming when the input is genuinely too large to materialise, and switch downstream logic to <span class="ep">CamelSplitComplete</span> (a boolean that flags the final element) instead of the size. A second surprise: after <span class="ep">.end()</span> the <em>original</em> whole-order exchange resumes — not the last line item — so anything you route after the split block sees the composite body again, not <span class="ep">SKU-3</span>.</p>
+
+      <h2>Production version</h2>
+      <p>Here the order arrives on an in-memory <span class="ep">direct:</span> channel and each item lands on a <span class="ep">log:</span> endpoint; in production the source is usually a <span class="ep">jms:</span>/<span class="ep">kafka:</span> queue or a <span class="ep">file:</span> batch, and <span class="ep">{{ep.item}}</span> points at a real per-item handler (another <span class="ep">jms:</span>/<span class="ep">kafka:</span> topic) so items can be processed and scaled independently. For large batches add <span class="ep">.streaming()</span> to hold constant memory, and add <span class="ep">.parallelProcessing()</span> when per-item throughput matters — but know that parallelism gives up the in-order delivery this lesson relies on, so re-order with the <span class="ep">CamelSplitIndex</span> or an Aggregator if order is required. Give the split block its own error handling (a per-item Dead Letter Channel) so one bad line item doesn't sink the whole batch, and keep <span class="ep">ep.item</span> plus any parallel/streaming toggles externalized in config. Finally, wire in observability — Camel's Micrometer metrics and the named <span class="ep">routeId("splitter")</span> make the fan-out rate and per-item failures visible per hop.</p>
     </div>
 
     <nav class="pager" aria-label="Lesson">
@@ -133,15 +158,7 @@ void splitsBulkOrderIntoOneMessagePerLineItem() throws Exception {
   </article>
 </main>
 
-<footer class="site-footer">
-  <div class="wrap cols">
-    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
-    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
-    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
-    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
-  </div>
-  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
-</footer>
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div><div><h4>Reference</h4><a href="../cheatsheet.html">Cheat sheet</a><a href="../camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="../request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="../dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
 <script src="../assets/js/nav.js"></script>
 </body>
 </html>

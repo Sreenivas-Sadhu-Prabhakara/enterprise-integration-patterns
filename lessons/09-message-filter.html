@@ -45,10 +45,7 @@
   <nav class="nav wrap" aria-label="Primary">
     <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
     <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
-    <div class="nav-links" id="nav-links">
-      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
-      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/09-message-filter">Module&nbsp;↗</a>
-    </div>
+    <div class="nav-links" id="nav-links"><a href="../index.html">Home</a><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a><a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;&#8599;</a></div>
   </nav>
 </header>
 
@@ -95,6 +92,12 @@
 
       <h2>Run it</h2>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/09-message-filter spring-boot:run</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>INFO --- [           main] c.e.eip.filter.Application  : Started Application in 2.38 seconds
+INFO --- [timer://demo]   filter                     : Considering order A-1001 (amount=999, test=false)
+INFO --- [timer://demo]   filter                     : Order A-1001 passed the filter -&gt; forwarding
+INFO --- [timer://demo]   kept                       : Exchange[Body: Order{orderId='A-1001', totalAmount=999, testFlag=false}]
+INFO --- [timer://demo]   filter                     : Considering order A-1002 (amount=0, test=false)
+INFO --- [timer://demo]   filter                     : Considering order A-1003 (amount=250, test=true)</code></pre></div>
       <p>A demo feeder injects a rotating sample every 3 seconds — one real order, one zero-value order, one test order — so you'll watch the real one land on the kept path while the other two are considered and then silently dropped. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
 
       <h2>The test is the spec</h2>
@@ -114,6 +117,11 @@ void keepsRealOrdersAndDropsRejectableOnes() throws Exception {
 }</code></pre></div>
       <p>In the test profile <span class="ep">{{ep.out}}</span> resolves to <span class="ep">mock:out</span>, so the spec sends three orders — a valid one, a zero-value one, and a test-flagged one — and asserts that <b>exactly one</b> reaches the mock. Dropped messages leave no trace, so we prove them by their <em>absence</em>. Run just the tests:</p>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/09-message-filter test</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>[INFO] Running com.example.eip.filter.MessageFilterTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Results:
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS</code></pre></div>
 
       <div class="note"><span class="tag">Try it</span> Silent drop is fine for noise, but wrong for anomalies. Add a second route (or an explicit else) that sends the rejected orders to a <span class="ep">mock:invalid</span> Invalid Message Channel instead of the void, and assert both mocks.</div>
 
@@ -123,6 +131,20 @@ void keepsRealOrdersAndDropsRejectableOnes() throws Exception {
         <li><span class="ep">filter(predicate)</span> is a one-armed <span class="ep">choice()</span> — reach for it when the "else" is simply "drop it".</li>
         <li>Drop noise, capture anomalies: when rejects need auditing or replay, route them to an Invalid Message Channel rather than the void.</li>
       </ul>
+
+      <h2>Related patterns</h2>
+      <ul>
+        <li><a href="10-content-based-router.html">10 · Content-Based Router</a> — <span class="ep">filter()</span> is a one-armed <span class="ep">choice()</span>; reach for the router the moment you need more than one keep-destination or want to react to the rejects.</li>
+        <li><a href="20-idempotent-consumer.html">20 · Idempotent Consumer</a> — a specialised Message Filter that drops <em>duplicates</em> by key instead of by predicate, keeping only the first sighting of each message.</li>
+        <li><a href="19-dead-letter-channel.html">19 · Dead Letter Channel</a> — where rejects go when they must be captured instead of silently dropped: the Invalid Message Channel / dead-letter alternative to the void.</li>
+        <li><a href="../guide.html">The EIP guide</a> — how Message Filter fits alongside the other routing patterns in the bigger picture.</li>
+      </ul>
+
+      <h2>Common mistake</h2>
+      <p>The trap with a Message Filter is treating it as a place to reject anything <em>unexpected</em>. A filter <span class="ep">silently drops</span> — a dropped message leaves no log, no exception, no trace — so a business-invalid order that vanished looks identical to one that never arrived when you are debugging in production. Reserve silent drop for genuine noise; when a reject may need auditing, alerting, or replay, send it to an <span class="ep">Invalid Message Channel</span> or dead-letter queue instead. And in the DSL, always close the block with <span class="ep">.end()</span> — forget it and every step you add afterward gets nested <em>inside</em> the filter and quietly runs for survivors only.</p>
+
+      <h2>Production version</h2>
+      <p>In a real system <span class="ep">direct:orders</span> is a broker consumer such as <span class="ep">jms:queue:orders</span> or <span class="ep">kafka:orders</span>, and <span class="ep">{{ep.out}}</span> points at a downstream queue, topic, or <span class="ep">http:</span> service rather than <span class="ep">log:kept</span>. Externalise the keep rule — the amount threshold and the test-flag policy — into configuration so operators can retune what counts as noise without a redeploy, rather than baking constants into the Simple expression. Because drops are invisible, add observability on the reject path: increment a Micrometer counter (or tap to a metrics endpoint) even when you discard the message, so you can alert if the drop rate suddenly spikes. The filter itself is stateless, so it scales horizontally with the broker's concurrency (JMS <span class="ep">concurrentConsumers</span> or Kafka partitions) with no coordination needed.</p>
     </div>
 
     <nav class="pager" aria-label="Lesson">
@@ -132,15 +154,7 @@ void keepsRealOrdersAndDropsRejectableOnes() throws Exception {
   </article>
 </main>
 
-<footer class="site-footer">
-  <div class="wrap cols">
-    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
-    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
-    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
-    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
-  </div>
-  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
-</footer>
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div><div><h4>Reference</h4><a href="../cheatsheet.html">Cheat sheet</a><a href="../camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="../request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="../dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
 <script src="../assets/js/nav.js"></script>
 </body>
 </html>

@@ -45,10 +45,7 @@
   <nav class="nav wrap" aria-label="Primary">
     <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
     <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
-    <div class="nav-links" id="nav-links">
-      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
-      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/04-message-channel-and-endpoint">Module&nbsp;↗</a>
-    </div>
+    <div class="nav-links" id="nav-links"><a href="../index.html">Home</a><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a><a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;&#8599;</a></div>
   </nav>
 </header>
 
@@ -105,6 +102,12 @@ from("seda:work?concurrentConsumers=2")                      // (3) async consum
 
       <h2>Run it</h2>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/04-message-channel-and-endpoint spring-boot:run</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>  INFO 8421 --- [           main] c.e.eip.channel.Application     : Started Application in 2.1 seconds
+  INFO 8421 --- [           main] intake                          : intake received 'order-1001' on thread main
+  INFO 8421 --- [ - seda://work] process                         : process handling 'order-1001' on thread Camel (camel-1) thread #2 - seda://work
+  INFO 8421 --- [ - seda://work] out                             : Exchange[Body: order-1001]
+  INFO 8421 --- [           main] intake                          : intake received 'order-1002' on thread main
+  INFO 8421 --- [ - seda://work] process                         : process handling 'order-1002' on thread Camel (camel-1) thread #1 - seda://work</code></pre></div>
       <p>A demo feeder injects a sample order every 3 seconds, so you'll see paired lines — <span class="ep">intake received 'order-1001' on thread ...main...</span> immediately followed by <span class="ep">process handling 'order-1001' on thread ...seda://work...</span>. Different threads: that's the async hop. Behind a firewall? Add <span class="ep">-P upstream</span>.</p>
 
       <h2>The test is the spec</h2>
@@ -127,6 +130,13 @@ void processingRunsOnADifferentThreadThanTheCaller() throws Exception {
 }</code></pre></div>
       <p>In the test profile <span class="ep">ep.out</span> resolves to <span class="ep">mock:out</span>, so we can assert exactly what crossed the <span class="ep">seda:work</span> channel — no broker required. Because <span class="ep">seda:</span> is asynchronous, <span class="ep">assertIsSatisfied</span> waits (default 10s) for the queued hop to finish before checking. Run just the tests:</p>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/04-message-channel-and-endpoint test</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>[INFO] Running com.example.eip.channel.MessageChannelAndEndpointTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.20 s -- in com.example.eip.channel.MessageChannelAndEndpointTest
+[INFO]
+[INFO] Results:
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] BUILD SUCCESS</code></pre></div>
 
       <div class="note"><span class="tag">Try it</span> Change <span class="ep">seda:work</span> to <span class="ep">direct:work</span> in both routes and rerun the tests. Watch <span class="ep">processingRunsOnADifferentThreadThanTheCaller</span> fail — with <span class="ep">direct:</span> the work runs on the caller's own thread, so the two thread names now match.</div>
 
@@ -136,6 +146,20 @@ void processingRunsOnADifferentThreadThanTheCaller() throws Exception {
         <li><span class="ep">direct:</span> is synchronous (caller's thread, exceptions propagate back); <span class="ep">seda:</span> is asynchronous (in-memory queue, background threads, not durable).</li>
         <li>Property-placeholder endpoints like <span class="ep">{{ep.out}}</span> let the same route run real in production and assert against <span class="ep">mock:</span> in tests.</li>
       </ul>
+
+      <h2>Related patterns</h2>
+      <ul>
+        <li><a href="18-point-to-point-and-pub-sub.html">18 · Point-to-Point vs Pub-Sub</a> — the same channel idea, now compared by delivery style: one consumer wins (like <span class="ep">seda:</span>) versus every subscriber gets a copy.</li>
+        <li><a href="21-request-reply-and-event-message.html">21 · Request-Reply vs Event Message</a> — the messaging-level view of the synchronous-vs-asynchronous choice you just felt with <span class="ep">direct:</span> and <span class="ep">seda:</span>.</li>
+        <li><a href="05-message-and-exchange.html">05 · Message &amp; Exchange</a> — what actually travels across the channel: the body and headers (like the <span class="ep">processingThread</span> stamp used here).</li>
+        <li><a href="19-dead-letter-channel.html">19 · Dead Letter Channel</a> — where the durability that the in-memory <span class="ep">seda:</span> queue lacks comes from: a channel for messages that cannot be delivered.</li>
+      </ul>
+
+      <h2>Common mistake</h2>
+      <p>Treating <span class="ep">seda:</span> like a durable broker. Because <span class="ep">to("seda:work")</span> returns immediately, it is tempting to lean on it for reliable, at-least-once delivery — but the queue lives only in JVM memory. If the process crashes or is redeployed, everything still sitting in <span class="ep">seda:work</span> is silently lost, and there is no transaction rollback to save it. Use <span class="ep">seda:</span> only for in-process decoupling within a single JVM; when messages must survive a restart, put a real broker channel (<span class="ep">jms:</span> or <span class="ep">kafka:</span>) between the two routes instead.</p>
+
+      <h2>Production version</h2>
+      <p>In production you would rarely join two routes over an in-memory <span class="ep">seda:</span> queue. The intake route would hand off to a durable channel — <span class="ep">jms:queue:orders</span> or <span class="ep">kafka:orders</span> — so a redeploy or crash never drops work, and the process route would consume that broker with the acknowledgement, redelivery, and dead-letter semantics the broker provides. Concurrency moves from <span class="ep">concurrentConsumers</span> to broker-level scaling (a JMS listener pool, or a Kafka consumer group spread across pods), and you would externalize the endpoint URIs, credentials, and thread counts into config or environment variables rather than hard-coding them. The <span class="ep">{{ep.out}}</span> placeholder already models this — it points at <span class="ep">log:</span> here, but in a real system it resolves to the next service endpoint. Add Micrometer metrics and distributed tracing so you can watch queue depth, consumer lag, and per-route latency instead of eyeballing thread names in the console.</p>
     </div>
 
     <nav class="pager" aria-label="Lesson">
@@ -145,15 +169,7 @@ void processingRunsOnADifferentThreadThanTheCaller() throws Exception {
   </article>
 </main>
 
-<footer class="site-footer">
-  <div class="wrap cols">
-    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
-    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
-    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
-    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
-  </div>
-  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
-</footer>
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div><div><h4>Reference</h4><a href="../cheatsheet.html">Cheat sheet</a><a href="../camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="../request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="../dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
 <script src="../assets/js/nav.js"></script>
 </body>
 </html>

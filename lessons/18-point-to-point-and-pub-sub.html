@@ -45,10 +45,7 @@
   <nav class="nav wrap" aria-label="Primary">
     <a class="brand" href="../index.html"><svg class="glyph" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#121F2E"/><path d="M5 16 H27" stroke="#23384B" stroke-width="2.5"/><path d="M16 16 L24 8 M16 16 L24 24" stroke="#E9A23B" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="16" r="3.4" fill="#3FD0C9"/></svg> EIP&nbsp;<b>Hands-On</b></a>
     <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">≡</button>
-    <div class="nav-links" id="nav-links">
-      <a href="../index.html">Home</a><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a>
-      <a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course/tree/main/patterns/18-point-to-point-and-pub-sub">Module&nbsp;↗</a>
-    </div>
+    <div class="nav-links" id="nav-links"><a href="../index.html">Home</a><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a><a class="nav-cta" href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code&nbsp;&#8599;</a></div>
   </nav>
 </header>
 
@@ -113,6 +110,14 @@
       <p>This module talks to a real broker, so start one first, then run the app.</p>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>make up                                                   # starts Artemis (see infra/)
 ./mvnw -pl patterns/18-point-to-point-and-pub-sub spring-boot:run</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>INFO  o.a.c.impl.engine.AbstractCamelContext : Apache Camel 4.8.0 (shopflow-messaging) is starting
+INFO  o.a.c.impl.engine.AbstractCamelContext : Routes startup (started:5)
+INFO  o.a.c.impl.engine.AbstractCamelContext :     Started send-to-queue (direct://fulfillment)
+INFO  o.a.c.impl.engine.AbstractCamelContext :     Started warehouse-worker (jms://queue:fulfillment)
+INFO  o.a.c.impl.engine.AbstractCamelContext :     Started publish-events (direct://order-events)
+INFO  o.a.c.impl.engine.AbstractCamelContext :     Started email-subscriber (jms://topic:order-events)
+INFO  o.a.c.impl.engine.AbstractCamelContext :     Started analytics-subscriber (jms://topic:order-events)
+INFO  o.a.c.impl.engine.AbstractCamelContext : Apache Camel 4.8.0 (shopflow-messaging) started in 1s234ms</code></pre></div>
       <p>Send an order to <span class="ep">direct:fulfillment</span> and only the warehouse worker logs it; send one to <span class="ep">direct:order-events</span> and both the email and analytics subscribers log a copy.</p>
 
       <h2>The test is the spec</h2>
@@ -132,6 +137,13 @@ void topicBroadcastsToEverySubscriber() throws Exception {
 }</code></pre></div>
       <p>These are <b>integration tests</b> (named <span class="ep">*IT</span>): they spin up a real ActiveMQ Artemis broker with Testcontainers, so they run under <span class="ep">verify</span> (Docker required) and are skipped by a plain <span class="ep">test</span>. The queue test proves exactly one consumer fires; the topic test proves <em>both</em> subscribers get a copy.</p>
       <div class="code"><div class="code-head"><span>terminal</span><button class="copy-btn" type="button">copy</button></div><pre><code>./mvnw -pl patterns/18-point-to-point-and-pub-sub verify     # runs the broker IT (needs Docker)</code></pre></div>
+      <div class="code"><div class="code-head"><span>expected output</span><button class="copy-btn" type="button">copy</button></div><pre><code>[INFO] --- failsafe:3.2.5:integration-test (default) @ 18-point-to-point-and-pub-sub ---
+[INFO] Running com.example.eip.messaging.PointToPointAndPubSubIT
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 145.6 s
+[INFO]
+[INFO] Results:
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS</code></pre></div>
 
       <div class="note"><span class="tag">Try it</span> Add a third subscriber to the topic — a <span class="ep">fraud-check</span> route — and assert it also receives a copy. Then change <span class="ep">jms:topic:order-events</span> to <span class="ep">jms:queue:...</span> and watch only one of the three consumers win.</div>
 
@@ -143,6 +155,22 @@ void topicBroadcastsToEverySubscriber() throws Exception {
       </ul>
     </div>
 
+    <div class="prose">
+      <h2>Related patterns</h2>
+      <ul>
+        <li><a href="13-recipient-list.html">Recipient List</a> — route-level fan-out: the sender picks named destinations, versus a topic where the broker broadcasts to whoever subscribed.</li>
+        <li><a href="14-wire-tap.html">Wire Tap</a> — send a copy to a second endpoint without disturbing the main flow; a lightweight, in-route cousin of pub-sub.</li>
+        <li><a href="../request-reply-vs-event-message.html">Request-Reply vs Event Message</a> — a topic almost always carries fire-and-forget <em>events</em>; this compares that style with request-reply.</li>
+        <li><a href="../eip-map.html">Full EIP Map</a> — see where the Point-to-Point and Publish-Subscribe channels sit among the messaging patterns.</li>
+      </ul>
+
+      <h2>Common mistake</h2>
+      <p>The classic trap with a <span class="ep">jms:topic:</span> is assuming subscribers never miss anything. A plain topic subscription is <b>non-durable</b>: if a subscriber route is down — or merely still starting up — when an event is published, that copy is gone for good. A queue holds each message until some consumer takes it, but a topic drops it for anyone not currently listening. If an event truly must survive restarts, declare a <span class="ep">durable subscription</span> (a stable clientId plus durableSubscriptionName) or route that consumer through a queue. And don't reach for a topic just because you have several consumers — use one only when each consumer genuinely needs its own copy.</p>
+
+      <h2>Production version</h2>
+      <p>In production the <span class="ep">{{ep.*}}</span> sinks stop being <span class="ep">log:</span> endpoints and become real work — an HTTP call to a fulfillment service, a database write, or another broker hop — while the broker URL, user and password move out of <span class="ep">application.yaml</span> into environment variables or a secrets manager. For durability you back the queue with persistent storage and add a Dead Letter queue with redelivery, and because a plain JMS topic is non-durable you register durable subscriptions so the email and analytics services don't lose events across a restart. To scale the warehouse worker you add competing consumers (<span class="ep">concurrentConsumers</span>) behind the same queue — the broker still hands each order to exactly one — and you wire up metrics and queue-depth alerts so a backed-up channel is visible. For very high event volume teams often swap JMS for <span class="ep">kafka:</span>: a single consumer group gives Point-to-Point, distinct group ids give Publish-Subscribe, and partitioned, disk-retained topics add the replay and parallelism JMS topics don't offer.</p>
+    </div>
+
     <nav class="pager" aria-label="Lesson">
       <a href="16-content-enricher.html"><div class="dir">← Previous</div>16 · Content Enricher</a>
       <a class="next" href="19-dead-letter-channel.html"><div class="dir">Next →</div>19 · Dead Letter Channel</a>
@@ -150,15 +178,7 @@ void topicBroadcastsToEverySubscriber() throws Exception {
   </article>
 </main>
 
-<footer class="site-footer">
-  <div class="wrap cols">
-    <div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div>
-    <div><h4>Course</h4><a href="../curriculum.html">Curriculum</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div>
-    <div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository ↗</a><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/enterprise-integration-patterns">Site repository ↗</a></div>
-    <div><h4>Reference</h4><a href="https://camel.apache.org/">Apache Camel ↗</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog ↗</a></div>
-  </div>
-  <div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div>
-</footer>
+<footer class="site-footer"><div class="wrap cols"><div><a class="brand" href="../index.html" style="margin-bottom:10px">EIP&nbsp;<b>Hands-On</b></a><p class="muted" style="max-width:34ch;font-size:.9rem">Enterprise Integration Patterns, one runnable module at a time.</p></div><div><h4>Course</h4><a href="../guide.html">Guide</a><a href="../curriculum.html">Curriculum</a><a href="../eip-map.html">EIP Map</a><a href="../setup.html">Setup</a><a href="../glossary.html">Glossary</a><a href="../about.html">About</a></div><div><h4>Reference</h4><a href="../cheatsheet.html">Cheat sheet</a><a href="../camel-vs-spring-integration.html">Camel vs Spring Integration</a><a href="../request-reply-vs-event-message.html">Request-Reply vs Event</a><a href="../dead-letter-channel-vs-retry.html">DLQ vs Retry</a></div><div><h4>Code</h4><a href="https://github.com/Sreenivas-Sadhu-Prabhakara/camel-eip-course">Code repository &#8599;</a><a href="https://www.enterpriseintegrationpatterns.com/">EIP catalog &#8599;</a></div></div><div class="wrap fine">Code Apache-2.0 · content CC-BY-4.0. An independent educational project, not affiliated with or endorsed by Red Hat or the Apache Software Foundation.</div></footer>
 <script src="../assets/js/nav.js"></script>
 </body>
 </html>
